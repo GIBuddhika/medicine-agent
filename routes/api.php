@@ -1,12 +1,15 @@
 <?php
 
 use \App\Http\Controllers\AuthController;
+use App\Http\Controllers\DistrictsController;
 use App\Http\Controllers\ShopsController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/create-account', AuthController::class . '@createAccount');
 Route::post('/sign-in', AuthController::class . '@signIn');
 
+Route::get('/districts', DistrictsController::class . '@all');
+Route::get('/districts/{id}/cities', DistrictsController::class . '@getCities');
 
 Route::prefix('shops')->group(function () {
     Route::get('/', ShopsController::class . '@all');
