@@ -14,4 +14,9 @@ class Shop extends Model
     {
         return $this->belongsTo(City::class);
     }
+
+    public function file()
+    {
+        return $this->hasOne(File::class);
+    }
 }

@@ -13,6 +13,7 @@ class CreateShopsTable extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('city_id');
+            $table->unsignedBigInteger('file_id')->nullable();
             $table->string('name');
             $table->string('address');
             $table->string('phone');
@@ -24,6 +25,7 @@ class CreateShopsTable extends Migration
 
             $table->foreign('city_id')->references('id')->on('cities');
             $table->foreign('user_id')->references('id')->on('users');
+            $table->foreign('file_id')->references('id')->on('files');
         });
     }
 
