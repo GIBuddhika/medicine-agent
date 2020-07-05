@@ -2,13 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Shop extends Model
 {
+    use SoftDeletes;
 
     public function city()
     {
@@ -17,6 +16,6 @@ class Shop extends Model
 
     public function file()
     {
-        return $this->hasOne(File::class);
+        return $this->belongsTo(File::class);
     }
 }

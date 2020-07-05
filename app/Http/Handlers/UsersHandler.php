@@ -12,7 +12,7 @@ class UsersHandler
     {
         $user = session(SessionConstants::User);
         if ($user->id == $userId) {
-            $shops = Shop::with('city')
+            $shops = Shop::with(['city','file'])
                 ->where('user_id', $userId)
                 ->get();
             return $shops;

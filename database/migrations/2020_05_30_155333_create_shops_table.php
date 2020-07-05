@@ -15,11 +15,12 @@ class CreateShopsTable extends Migration
             $table->unsignedBigInteger('city_id');
             $table->unsignedBigInteger('file_id')->nullable();
             $table->string('name');
+            $table->string('slug');
             $table->string('address');
             $table->string('phone');
             $table->string('website')->nullable();
-            $table->decimal('latitude');
-            $table->decimal('longitude');
+            $table->decimal('latitude',17,15);
+            $table->decimal('longitude',17,15);
             $table->timestamps();
             $table->softDeletes();
 

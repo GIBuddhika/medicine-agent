@@ -4,10 +4,10 @@ namespace App\Http\Handlers;
 
 use App\Constants\SessionConstants;
 use App\Constants\ValidationMessageConstants;
+use App\Models\City;
 use App\Models\File;
 use App\Models\Shop;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -16,7 +16,7 @@ class ShopsHandler
 {
     public function getAll()
     {
-        $shops = Shop::with('city')
+        $shops = Shop::with('city', 'file')
             ->get();
 
         return $shops;
@@ -25,7 +25,7 @@ class ShopsHandler
     public function getShop($id)
     {
         $shop = Shop::where('id', $id)
-            ->with('city')
+            ->with('city', 'file')
             ->firstOrFail();
 
         return $shop;
@@ -43,6 +43,7 @@ class ShopsHandler
 
     public function createShop($data)
     {
+        $user = session(SessionConstants::User);
         $rules = [
             'city_id' => 'required|integer|exists:cities,id',
             'name' => 'required',
@@ -74,10 +75,19 @@ class ShopsHandler
         if (isset($data['image'])) {
             $file = new File();
             $file->name = $data['image_name'];
-            $file->location = "images/shops/" . Carbon::now()->timestamp;
+            $file->location = "images/shops/" . Carbon::now()->timestamp . $user->id;
             $file->save();
             $image = str_replace('data:image/png;base64,', '', $data['image']);
-            Storage::put($file->location, base64_decode($image));
+            Storage::put("public/" . $file->location, base64_decode($image));
+        }
+
+        $city = City::find($data['city_id']);
+        $slugMain = str_replace(" ", "-", $data['name']) . "-" . $city->name;
+        $slug = $slugMain;
+        $i = 2;
+        while ($this->hasExistingSlug($slug)) {
+            $slug = $slugMain . "-" . $i;
+            $i++;
         }
 
         $shop = new Shop();
@@ -87,6 +97,7 @@ class ShopsHandler
             $shop->file_id = $file->id;
         }
         $shop->name = $data['name'];
+        $shop->slug = $slug;
         $shop->address = $data['address'];
         $shop->phone = $data['phone'];
         if (isset($data['website'])) {
@@ -111,9 +122,11 @@ class ShopsHandler
             'name' => 'required',
             'address' => 'required',
             'phone' => 'required|numeric',
-            'website' => 'url',
+            'website' => 'url|nullable',
             'latitude' => array('required', 'numeric', 'regex:/^[-]?(([0-8]?[0-9])\.(\d+))|(90(\.0+)?)$/'),
             'longitude' => array('required', 'numeric', 'regex:/^[-]?((((1[0-7][0-9])|([0-9]?[0-9]))\.(\d+))|180(\.0+)?)$/'),
+            'image' => 'base64|nullable',
+            'image_name' => 'required_with:image|nullable',
         ];
 
         $messages = [
@@ -123,6 +136,8 @@ class ShopsHandler
             'regex' => ValidationMessageConstants::Invalid,
             'exists' => ValidationMessageConstants::NotFound,
             'numeric' => ValidationMessageConstants::Invalid,
+            'image' => 'base64|nullable',
+            'image_name' => 'required_with:image|nullable',
         ];
 
         $validator = Validator::make($data, $rules, $messages);
@@ -130,9 +145,30 @@ class ShopsHandler
             throw new ValidationException($validator, 400);
         }
 
-        $shop->user_id = session(SessionConstants::User)->id;
+        if (isset($data['image'])) {
+            $file = new File();
+            $file->name = $data['image_name'];
+            $file->location = "images/shops/" . Carbon::now()->timestamp . $user->id;
+            $file->save();
+            $image = str_replace('data:image/png;base64,', '', $data['image']);
+            Storage::put("public/" . $file->location, base64_decode($image));
+        }
+
+        $city = City::find($data['city_id']);
+        $slugMain = str_replace(" ", "-", $data['name']) . "-" . $city->name;
+        $slug = $slugMain;
+        $i = 2;
+        while ($this->hasExistingSlug($slug) && $slug != $shop->slug) {
+            $slug = $slugMain . "-" . $i;
+            $i++;
+        }
+
         $shop->city_id = $data['city_id'];
+        if (isset($data['image'])) {
+            $shop->file_id = $file->id;
+        }
         $shop->name = $data['name'];
+        $shop->slug = $slug;
         $shop->address = $data['address'];
         $shop->phone = $data['phone'];
         if (isset($data['website'])) {
@@ -143,5 +179,14 @@ class ShopsHandler
 
         $shop->save();
         return $shop;
+    }
+
+    private function hasExistingSlug($slug)
+    {
+        $slugsCount = Shop::where('slug', $slug)->count();
+        if ($slugsCount == 0) {
+            return false;
+        }
+        return true;
     }
 }
