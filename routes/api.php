@@ -2,6 +2,7 @@
 
 use \App\Http\Controllers\AuthController;
 use App\Http\Controllers\DistrictsController;
+use App\Http\Controllers\ItemsController;
 use App\Http\Controllers\ShopsController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,7 @@ Route::get('/districts/{id}/cities', DistrictsController::class . '@getCities');
 Route::prefix('users')->group(function () {
     Route::middleware(['logged_in_user',])->group(function () {
         Route::get('/{id}/shops', UsersController::class . '@getShops');
+        Route::get('/{id}/items', UsersController::class . '@getItems');
     });
 });
 
@@ -26,5 +28,11 @@ Route::prefix('shops')->group(function () {
         Route::post('/', ShopsController::class . '@create');
         Route::patch('/{id}', ShopsController::class . '@update');
         Route::delete('/{id}', ShopsController::class . '@delete');
+    });
+});
+
+Route::prefix('items')->group(function () {
+    Route::middleware(['logged_in_user',])->group(function () {
+        Route::post('/', ItemsController::class . '@create');
     });
 });

@@ -17,6 +17,7 @@ class ShopsHandler
     public function getAll()
     {
         $shops = Shop::with('city', 'file')
+            ->where('is_a_personal_listing', false)
             ->get();
 
         return $shops;

@@ -13,14 +13,15 @@ class CreateShopsTable extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('city_id');
+            $table->boolean('is_a_personal_listing')->default(false); //if true, this is not a shop. This just saving data for personal listing
             $table->unsignedBigInteger('file_id')->nullable();
-            $table->string('name');
-            $table->string('slug');
+            $table->string('name')->nullable();
+            $table->string('slug')->nullable();
             $table->string('address');
             $table->string('phone');
             $table->string('website')->nullable();
-            $table->decimal('latitude',17,15);
-            $table->decimal('longitude',17,15);
+            $table->decimal('latitude', 17, 15);
+            $table->decimal('longitude', 17, 15);
             $table->timestamps();
             $table->softDeletes();
 

@@ -32,6 +32,13 @@ class AppServiceProvider extends ServiceProvider
                 }
                 return false;
             }
+            else if (strpos($value, "data:image/jpeg;base64,") !== false) {
+                $base64Text = str_replace("data:image/jpeg;base64,", "", $value);
+                if (strlen($base64Text) % 4 == 0) { //base64 string should divisible by 4
+                    return true;
+                }
+                return false;
+            }
             return false;
         });
     }
