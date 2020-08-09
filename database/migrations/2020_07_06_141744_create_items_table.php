@@ -18,6 +18,7 @@ class CreateItemsTable extends Migration
             $table->text('description')->nullable();
             $table->integer('category_id'); //rent or sell
             $table->integer('quantity');
+            $table->integer('image_id')->nullable(); //main image id
             $table->timestamps();
             $table->softDeletes();
 

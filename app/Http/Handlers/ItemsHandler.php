@@ -18,6 +18,24 @@ use Illuminate\Validation\ValidationException;
 
 class ItemsHandler
 {
+    public function getAll($data)
+    {
+        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'shop.file', 'shop.city', 'files']);
+
+        if ($data['page'] && $data['per_page']) {
+            $totalCount = $itemsQ->count();
+            $itemsQ = $itemsQ->skip(($data['page'] - 1) * $data['per_page'])
+                ->take($data['per_page']);
+        }
+
+        $items = $itemsQ->get();
+        return [
+            'data' => $items,
+            'total' => $totalCount,
+        ];
+    }
+
+
     public function createItem($data)
     {
         DB::transaction(function () use ($data) {
@@ -107,7 +125,9 @@ class ItemsHandler
                 $image = str_replace('data:image/png;base64,', '', $data['image']);
                 $image = str_replace('data:image/jpeg;base64,', '', $image);
                 Storage::put("public/" . $file->location, base64_decode($image));
-                Log::info($file->id);
+
+                $item->image_id = $file->id;
+                $item->save();
 
                 $imageIds[] = $file->id;
             }
@@ -149,7 +169,6 @@ class ItemsHandler
             return $item->fresh();
         });
     }
-
 
     private function hasExistingSlug($slug)
     {

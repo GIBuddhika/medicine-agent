@@ -32,6 +32,7 @@ Route::prefix('shops')->group(function () {
 });
 
 Route::prefix('items')->group(function () {
+    Route::get('/', ItemsController::class . '@all');
     Route::middleware(['logged_in_user',])->group(function () {
         Route::post('/', ItemsController::class . '@create');
     });

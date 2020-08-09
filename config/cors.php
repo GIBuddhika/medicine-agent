@@ -42,7 +42,7 @@ return [
      * Sets the Access-Control-Allow-Headers response header. `[*]` allows all headers.
      */
     // 'allowed_headers' => ['*'],
-    'allowed_headers' => ['security-token'],
+    'allowed_headers' => ['security-token','content-type'],
 
     /*
      * Sets the Access-Control-Expose-Headers response header.

@@ -27,18 +27,18 @@ class UsersHandler
     {
         $user = session(SessionConstants::User);
         if ($user->id == $userId) {
-            $shopsQ = Item::with(['sellableItem', 'rentableItem', 'shop'])
+            $itemsQ = Item::with(['sellableItem', 'rentableItem', 'shop'])
                 ->where('user_id', $userId);
 
             if ($data['page'] && $data['per_page']) {
-                $totalCount = $shopsQ->count();
-                $shopsQ = $shopsQ->skip(($data['page'] - 1) * $data['per_page'])
+                $totalCount = $itemsQ->count();
+                $itemsQ = $itemsQ->skip(($data['page'] - 1) * $data['per_page'])
                     ->take($data['per_page']);
             }
 
-            $shops = $shopsQ->get();
+            $items = $itemsQ->get();
             return [
-                'data' => $shops,
+                'data' => $items,
                 'total' => $totalCount,
             ];
         } else {
