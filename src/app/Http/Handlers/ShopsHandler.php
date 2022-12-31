@@ -7,6 +7,7 @@ use App\Constants\ValidationMessageConstants;
 use App\Models\City;
 use App\Models\File;
 use App\Models\Shop;
+use App\Rules\Phone;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -50,7 +51,7 @@ class ShopsHandler
             'city_id' => 'required|integer|exists:cities,id',
             'name' => 'required',
             'address' => 'required',
-            'phone' => 'required|numeric',
+            'phone' => ['required', 'numeric', new Phone],
             'website' => 'url|nullable',
             'latitude' => array('required', 'numeric', 'regex:/^[-]?(([0-8]?[0-9])\.(\d+))|(90(\.0+)?)$/'),
             'longitude' => array('required', 'numeric', 'regex:/^[-]?((((1[0-7][0-9])|([0-9]?[0-9]))\.(\d+))|180(\.0+)?)$/'),
@@ -135,7 +136,7 @@ class ShopsHandler
             'city_id' => 'required|integer|exists:cities,id',
             'name' => 'required',
             'address' => 'required',
-            'phone' => 'required|numeric',
+            'phone' => ['required', 'numeric', new Phone],
             'website' => 'url|nullable',
             'latitude' => array('required', 'numeric', 'regex:/^[-]?(([0-8]?[0-9])\.(\d+))|(90(\.0+)?)$/'),
             'longitude' => array('required', 'numeric', 'regex:/^[-]?((((1[0-7][0-9])|([0-9]?[0-9]))\.(\d+))|180(\.0+)?)$/'),

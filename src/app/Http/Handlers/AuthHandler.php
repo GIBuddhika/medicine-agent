@@ -7,6 +7,7 @@ use App\Jobs\ForgotPasswordMailJob;
 use App\Models\AuthSession;
 use App\Models\PasswordResetRequest;
 use App\Models\User;
+use App\Rules\Phone;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Contracts\Hashing\Hasher;
@@ -22,7 +23,7 @@ class AuthHandler
     {
         $rules = [
             'name' => 'required',
-            'phone' => 'required|numeric',
+            'phone' => ['required', 'numeric', new Phone],
             'email' => 'required|unique:users,email,null,id,is_admin,' . $data['is_admin'],
             'password' => 'required|confirmed',
             'is_admin' => 'required|boolean',
