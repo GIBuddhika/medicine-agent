@@ -37,4 +37,4 @@ USER developer
 
 ADD ./src /var/www/html/
 
-RUN composer install
+#RUN composer install

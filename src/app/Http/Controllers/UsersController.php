@@ -8,6 +8,19 @@ use Illuminate\Http\Request;
 
 class UsersController extends Controller
 {
+    public function get(int $id)
+    {
+        try {
+            $user = $this
+                ->getUsersHandler()
+                ->get($id);
+
+            return $user;
+        } catch (ModelNotFoundException $ex) {
+            return response([], 404);
+        }
+    }
+  
     public function getShops(int $id)
     {
         try {

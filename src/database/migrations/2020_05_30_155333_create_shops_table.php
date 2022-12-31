@@ -18,10 +18,11 @@ class CreateShopsTable extends Migration
             $table->string('name')->nullable();
             $table->string('slug')->nullable();
             $table->string('address');
-            $table->string('phone');
+            $table->string('phone')->nullable();
             $table->string('website')->nullable();
             $table->decimal('latitude', 17, 15);
             $table->decimal('longitude', 17, 15);
+            $table->string('stripe_customer_id');
             $table->timestamps();
             $table->softDeletes();
 

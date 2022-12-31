@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use Stripe\StripeClient;
 
 class ShopsHandler
 {
@@ -92,7 +93,7 @@ class ShopsHandler
         }
 
         $shop = new Shop();
-        $shop->user_id = session(SessionConstants::User)->id;
+        $shop->user_id = $user->id;
         $shop->city_id = $data['city_id'];
         if (isset($data['image'])) {
             $shop->file_id = $file->id;
@@ -106,6 +107,18 @@ class ShopsHandler
         }
         $shop->latitude = $data['latitude'];
         $shop->longitude = $data['longitude'];
+
+        $stripe = new StripeClient(config('app.STRIPE_SECRET'));
+        $stripeCustomer =  $stripe->customers->create([
+            'email' => $user->email,
+            'name' => $data['name'],
+            'phone' => $data['phone'],
+            'address[line1]' => $data['address'],
+            'metadata' => [
+                "slug" => $slug
+            ]
+        ]);
+        $shop->stripe_customer_id = $stripeCustomer->id;
 
         $shop->save();
         return $shop->fresh();
@@ -177,6 +190,15 @@ class ShopsHandler
         }
         $shop->latitude = $data['latitude'];
         $shop->longitude = $data['longitude'];
+
+        if ($shop->isDirty('name') || $shop->isDirty('phone') || $shop->isDirty('address')) {
+            $stripe = new StripeClient(config('app.STRIPE_SECRET'));
+            $stripe->customers->update($shop->stripe_customer_id, [
+                'name' => $data['name'],
+                'phone' => $data['phone'],
+                'address[line1]' => $data['address'],
+            ]);
+        }
 
         $shop->save();
         return $shop;

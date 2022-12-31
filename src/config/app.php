@@ -123,6 +123,10 @@ return [
 
     'cipher' => 'AES-256-CBC',
 
+    'STRIPE_SECRET' => env('STRIPE_SECRET'),
+
+    'SITE_URL' => env('SITE_URL'),
+
     /*
     |--------------------------------------------------------------------------
     | Autoloaded Service Providers

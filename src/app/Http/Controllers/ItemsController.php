@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Handlers\ItemsHandler;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class ItemsController extends Controller
 {
@@ -19,6 +20,61 @@ class ItemsController extends Controller
             return $item;
         } catch (ValidationException $ex) {
             return response($ex->validator->errors(), 400);
+        }
+    }
+
+    public function all(Request $request)
+    {
+        try {
+            $items = $this
+                ->getItemsHandler()
+                ->getAll($request->toArray());
+
+            return response()->json($items['data'])
+                ->header('App-Content-Full-Count', $items['total']);
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
+        }
+    }
+
+    public function get(Request $request, String $slug)
+    {
+        try {
+            $item = $this
+                ->getItemsHandler()
+                ->get($slug);
+
+            return response()->json($item);
+        } catch (NotFoundHttpException $ex) {
+            return response(null, 404);
+        }
+    }
+
+    public function update(Request $request, int $id)
+    {
+        try {
+            $item = $this
+                ->getItemsHandler()
+                ->updateItem($id, $request->toArray());
+
+            return $item;
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
+        } catch (NotFoundHttpException $ex) {
+            return response(null, 404);
+        }
+    }
+
+    public function delete(Request $request, int $id)
+    {
+        try {
+            $item = $this
+                ->getItemsHandler()
+                ->deleteItem($id, $request->toArray());
+
+            return [];
+        } catch (NotFoundHttpException $ex) {
+            return response(null, 404);
         }
     }
 

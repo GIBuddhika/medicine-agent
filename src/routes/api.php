@@ -3,18 +3,23 @@
 use \App\Http\Controllers\AuthController;
 use App\Http\Controllers\DistrictsController;
 use App\Http\Controllers\ItemsController;
+use App\Http\Controllers\OrdersController;
 use App\Http\Controllers\ShopsController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/create-account', AuthController::class . '@createAccount');
-Route::post('/sign-in', AuthController::class . '@signIn');
+Route::post('/login', AuthController::class . '@login');
+Route::get('/validate', AuthController::class . '@validateToken');
+Route::post('/password-reset-request', AuthController::class . '@passwordResetRequest');
+Route::post('/reset-password', AuthController::class . '@resetPassword');
 
 Route::get('/districts', DistrictsController::class . '@all');
 Route::get('/districts/{id}/cities', DistrictsController::class . '@getCities');
 
 Route::prefix('users')->group(function () {
     Route::middleware(['logged_in_user',])->group(function () {
+        Route::get('/{id}', UsersController::class . '@get');
         Route::get('/{id}/shops', UsersController::class . '@getShops');
         Route::get('/{id}/items', UsersController::class . '@getItems');
     });
@@ -32,7 +37,17 @@ Route::prefix('shops')->group(function () {
 });
 
 Route::prefix('items')->group(function () {
+    Route::get('/', ItemsController::class . '@all');
+    Route::get('/{slug}', ItemsController::class . '@get');
     Route::middleware(['logged_in_user',])->group(function () {
         Route::post('/', ItemsController::class . '@create');
+        Route::patch('/{id}', ItemsController::class . '@update');
+        Route::delete('/{id}', ItemsController::class . '@delete');
+    });
+});
+
+Route::prefix('orders')->group(function () {
+    Route::middleware(['logged_in_user',])->group(function () {
+        Route::post('/', OrdersController::class . '@create');
     });
 });
