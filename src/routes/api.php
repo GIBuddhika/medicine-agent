@@ -18,18 +18,20 @@ Route::get('/districts', DistrictsController::class . '@all');
 Route::get('/districts/{id}/cities', DistrictsController::class . '@getCities');
 
 Route::prefix('users')->group(function () {
-    Route::middleware(['logged_in_user',])->group(function () {
+    Route::middleware(['logged_in_user'])->group(function () {
         Route::get('/{id}', UsersController::class . '@get');
+    });
+    Route::middleware(['admin'])->group(function () {
         Route::get('/{id}/shops', UsersController::class . '@getShops');
         Route::get('/{id}/items', UsersController::class . '@getItems');
     });
 });
 
 Route::prefix('shops')->group(function () {
-    Route::get('/', ShopsController::class . '@all');
+    // Route::get('/', ShopsController::class . '@all');
     Route::get('/{id}', ShopsController::class . '@one');
 
-    Route::middleware(['logged_in_user',])->group(function () {
+    Route::middleware(['admin'])->group(function () {
         Route::post('/', ShopsController::class . '@create');
         Route::patch('/{id}', ShopsController::class . '@update');
         Route::delete('/{id}', ShopsController::class . '@delete');
@@ -39,7 +41,7 @@ Route::prefix('shops')->group(function () {
 Route::prefix('items')->group(function () {
     Route::get('/', ItemsController::class . '@all');
     Route::get('/{slug}', ItemsController::class . '@get');
-    Route::middleware(['logged_in_user',])->group(function () {
+    Route::middleware(['admin',])->group(function () {
         Route::post('/', ItemsController::class . '@create');
         Route::patch('/{id}', ItemsController::class . '@update');
         Route::delete('/{id}', ItemsController::class . '@delete');
@@ -47,7 +49,7 @@ Route::prefix('items')->group(function () {
 });
 
 Route::prefix('orders')->group(function () {
-    Route::middleware(['logged_in_user',])->group(function () {
+    Route::middleware(['customer',])->group(function () {
         Route::post('/', OrdersController::class . '@create');
     });
 });

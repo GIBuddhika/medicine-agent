@@ -43,6 +43,24 @@ class UsersHandler
             $itemsQ = Item::with(['sellableItem', 'rentableItem', 'shop.city'])
                 ->where('user_id', $userId);
 
+            if (isset($data['searchTerm'])) {
+                $searchTerm = $data['searchTerm'];
+                $itemsQ->where(function ($iquery) use ($searchTerm) {
+                    $iquery
+                        ->where('name', 'like', '%' . $searchTerm . '%')
+                        ->orWhere('description', 'like', '%' . $searchTerm . '%');
+                });
+            }
+
+            if (isset($data['shopId'])) {
+                $shopId = $data['shopId'];
+                //check if user can access to the shop
+                $itemsQ->where(function ($iquery) use ($shopId) {
+                    $iquery
+                        ->where('shop_id', $shopId);
+                });
+            }
+
             if ($data['page'] && $data['per_page']) {
                 $totalCount = $itemsQ->count();
                 $itemsQ = $itemsQ->skip(($data['page'] - 1) * $data['per_page'])
