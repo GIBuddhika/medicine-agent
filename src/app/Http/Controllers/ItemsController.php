@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Handlers\ItemsHandler;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -20,6 +21,8 @@ class ItemsController extends Controller
             return $item;
         } catch (ValidationException $ex) {
             return response($ex->validator->errors(), 400);
+        } catch (ModelNotFoundException $ex) {
+            return response([], 404);
         }
     }
 

@@ -46,11 +46,11 @@ class AuthController extends Controller
         ];
 
         try {
-            $authSession = $this
+            $data = $this
                 ->getAuthHandler()
                 ->login($data);
 
-            return $authSession;
+            return $data;
         } catch (ValidationException $ex) {
             return response($ex->validator->errors(), 400);
         } catch (ModelNotFoundException $ex) {

@@ -4,6 +4,7 @@ use \App\Http\Controllers\AuthController;
 use App\Http\Controllers\DistrictsController;
 use App\Http\Controllers\ItemsController;
 use App\Http\Controllers\OrdersController;
+use App\Http\Controllers\ShopAdminsController;
 use App\Http\Controllers\ShopsController;
 use App\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +25,7 @@ Route::prefix('users')->group(function () {
     Route::middleware(['admin'])->group(function () {
         Route::get('/{id}/shops', UsersController::class . '@getShops');
         Route::get('/{id}/items', UsersController::class . '@getItems');
+        Route::get('/{id}/shop-admins', UsersController::class . '@getShopAdmins');
     });
 });
 
@@ -51,5 +53,14 @@ Route::prefix('items')->group(function () {
 Route::prefix('orders')->group(function () {
     Route::middleware(['customer',])->group(function () {
         Route::post('/', OrdersController::class . '@create');
+    });
+});
+
+Route::prefix('shop-admins')->group(function () {
+    Route::middleware(['admin',])->group(function () {
+        Route::post('/', ShopAdminsController::class . '@create');
+        Route::get('/', ShopAdminsController::class . '@all');
+        Route::patch('/{id}', ShopAdminsController::class . '@update');
+        Route::delete('/{id}', ShopAdminsController::class . '@delete');
     });
 });

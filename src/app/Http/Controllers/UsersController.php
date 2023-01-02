@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Handlers\UsersHandler;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
+use Svg\Tag\Rect;
 
 class UsersController extends Controller
 {
@@ -20,13 +21,17 @@ class UsersController extends Controller
             return response([], 404);
         }
     }
-  
-    public function getShops(int $id)
+
+    public function getShops(Request $request, int $id)
     {
+        $data = [
+            'is_a_personal_listing' => $request->is_a_personal_listing
+        ];
+
         try {
             $shops = $this
                 ->getUsersHandler()
-                ->getShops($id);
+                ->getShops($id, $data);
 
             return $shops;
         } catch (ModelNotFoundException $ex) {
@@ -44,6 +49,19 @@ class UsersController extends Controller
 
             return response()->json($products['data'])
                 ->header('App-Content-Full-Count', $products['total']);
+        } catch (ModelNotFoundException $ex) {
+            return response([], 404);
+        }
+    }
+
+    public function getShopAdmins(int $id)
+    {
+        try {
+            $shops = $this
+                ->getUsersHandler()
+                ->getShopAdmins($id);
+
+            return $shops;
         } catch (ModelNotFoundException $ex) {
             return response([], 404);
         }

@@ -22,13 +22,13 @@ class UsersHandler
         }
     }
 
-    public function getShops(int $userId)
+    public function getShops(int $userId, array $data)
     {
         $user = session(SessionConstants::User);
         if ($user->id == $userId) {
-            $shops = Shop::with(['city', 'file'])
+            $shops = Shop::with(['city', 'file', 'shopAdmins'])
                 ->where('user_id', $userId)
-                ->where('is_a_personal_listing', false)
+                ->where('is_a_personal_listing', filter_var($data['is_a_personal_listing'], FILTER_VALIDATE_BOOLEAN))
                 ->get();
             return $shops;
         } else {
@@ -52,6 +52,14 @@ class UsersHandler
                 });
             }
 
+            if (isset($data['type'])) {
+                if ($data['type'] == "shop") {
+                    $itemsQ->where('is_a_shop_listing', true);
+                } elseif ($data['type'] == "personal") {
+                    $itemsQ->where('is_a_shop_listing', false);
+                }
+            }
+
             if (isset($data['shopId'])) {
                 $shopId = $data['shopId'];
                 //check if user can access to the shop
@@ -72,6 +80,19 @@ class UsersHandler
                 'data' => $items,
                 'total' => $totalCount,
             ];
+        } else {
+            throw new ModelNotFoundException();
+        }
+    }
+
+    public function getShopAdmins(int $userId)
+    {
+        $user = session(SessionConstants::User);
+        if ($user->id == $userId) {
+            $shopAdmins = User::with(['shops'])
+                ->where('owner_id', $userId)
+                ->get();
+            return $shopAdmins;
         } else {
             throw new ModelNotFoundException();
         }

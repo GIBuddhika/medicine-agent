@@ -2,6 +2,7 @@
 
 namespace App\Http\Handlers;
 
+use App\Constants\UserRoleConstants;
 use App\Constants\ValidationMessageConstants;
 use App\Jobs\ForgotPasswordMailJob;
 use App\Models\AuthSession;
@@ -99,7 +100,10 @@ class AuthHandler
 
             $securityToken->save();
 
-            return $securityToken;
+            return [
+                'authSession' => $securityToken,
+                'user' => $user
+            ];
         } catch (NotFoundHttpException $ex) {
             throw $ex;
         }
@@ -107,12 +111,27 @@ class AuthHandler
 
     public function validate(array $data)
     {
-        $isValid = AuthSession::with('user')->where('token', $data['token'])
-            ->whereDate('expire_at', '>', Carbon::now())
-            ->whereHas('user', function ($query) use ($data) {
-                $query->where('is_admin', $data['is_admin']);
-            })
-            ->exists();
+        $isValidQ = AuthSession::with('user')->where('token', $data['token'])
+            ->whereDate('expire_at', '>', Carbon::now());
+
+        if ($data['user_role'] == UserRoleConstants::CUSTOMER) {
+            $isValidQ->whereHas('user', function ($query) {
+                $query->whereNull('is_admin');
+                $query->whereNull('owner_id');
+            });
+        } else if ($data['user_role'] == UserRoleConstants::ADMIN) {
+            $isValidQ->whereHas('user', function ($query) {
+                $query->where('is_admin', 1);
+                $query->whereNull('owner_id');
+            });
+        } else if ($data['user_role'] == UserRoleConstants::SHOP_ADMIN) {
+            $isValidQ->whereHas('user', function ($query) {
+                $query->where('is_admin', 1);
+                $query->whereNotNull('owner_id');
+            });
+        }
+
+        $isValid = $isValidQ->exists();
         return $isValid;
     }
 

@@ -57,6 +57,7 @@ class ShopsHandler
             'longitude' => array('required', 'numeric', 'regex:/^[-]?((((1[0-7][0-9])|([0-9]?[0-9]))\.(\d+))|180(\.0+)?)$/'),
             'image' => 'base64|nullable',
             'image_name' => 'required_with:image|nullable',
+            'shop_admin_ids' => 'array',
         ];
 
         $messages = [
@@ -68,7 +69,10 @@ class ShopsHandler
             'numeric' => ValidationMessageConstants::Invalid,
             'base64' => ValidationMessageConstants::Invalid,
             'required_with' => ValidationMessageConstants::Required,
+            'array' => ValidationMessageConstants::Invalid,
         ];
+
+        $data['shop_admin_ids'] = json_decode($data['shop_admin_ids']);
 
         $validator = Validator::make($data, $rules, $messages);
         if ($validator->fails()) {
@@ -116,12 +120,16 @@ class ShopsHandler
             'phone' => $data['phone'],
             'address[line1]' => $data['address'],
             'metadata' => [
+                "owner_id" => $user->id,
                 "slug" => $slug
             ]
         ]);
         $shop->stripe_customer_id = $stripeCustomer->id;
 
         $shop->save();
+
+        $shop->shopAdmins()->attach($data['shop_admin_ids']);
+
         return $shop->fresh();
     }
 
