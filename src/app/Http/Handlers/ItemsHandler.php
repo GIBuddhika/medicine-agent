@@ -24,7 +24,7 @@ class ItemsHandler
 {
     public function getAll($data)
     {
-        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'shop.city', 'files']);
+        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'shop.city', 'files','shop.file']);
 
         if (isset($data['searchTerm'])) {
             $searchTerm = $data['searchTerm'];
