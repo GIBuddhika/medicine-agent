@@ -13,7 +13,6 @@ class CreateShopsTable extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('city_id');
-            $table->boolean('is_a_personal_listing')->default(false); //if true, this is not a shop. This just saving data for personal listing
             $table->unsignedBigInteger('file_id')->nullable();
             $table->string('name')->nullable();
             $table->string('slug')->nullable();

@@ -4,13 +4,16 @@ namespace App\Http\Handlers;
 
 use App\Constants\ProductCategoryConstants;
 use App\Constants\SessionConstants;
+use App\Constants\UserMetaConstants;
 use App\Constants\ValidationMessageConstants;
 use App\Models\City;
 use App\Models\File;
 use App\Models\Item;
+use App\Models\PersonalListing;
 use App\Models\Shop;
 use App\Rules\Phone;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -24,7 +27,7 @@ class ItemsHandler
 {
     public function getAll($data)
     {
-        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'shop.city', 'files','shop.file']);
+        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'shop.city', 'files', 'shop.file']);
 
         if (isset($data['searchTerm'])) {
             $searchTerm = $data['searchTerm'];
@@ -102,118 +105,51 @@ class ItemsHandler
             }
 
             try {
-                if ($data['is_a_shop_listing'] == false) {
-                    //check if there's any shop for this user. Else create one. one shop for all personal listings.
-
-                    $shop = Shop::where('user_id', $user->id)
-                        ->where('is_a_personal_listing', true)
-                        ->first();
-
-                    if (!$shop) {
-                        $rules = [
-                            'city_id' => 'integer|exists:cities,id|nullable',
-                            'address' => 'nullable',
-                            'latitude' => array('numeric', 'regex:/^[-]?(([0-8]?[0-9])\.(\d+))|(90(\.0+)?)$/'),
-                            'longitude' => array('numeric', 'regex:/^[-]?((((1[0-7][0-9])|([0-9]?[0-9]))\.(\d+))|180(\.0+)?)$/'),
-                        ];
-
-                        $messages = [
-                            'required' => ValidationMessageConstants::Required,
-                            'integer' => ValidationMessageConstants::IntegerValue,
-                            'exists' => ValidationMessageConstants::NotFound,
-                            'numeric' => ValidationMessageConstants::Invalid,
-                            'required_if' => ValidationMessageConstants::Required,
-                        ];
-
-                        $validator = Validator::make($data, $rules, $messages);
-                        if ($validator->fails()) {
-                            throw new ValidationException($validator, 400);
-                        }
-
-                        $stripe = new StripeClient(config('app.STRIPE_SECRET'));
-                        $stripeCustomer =  $stripe->customers->create([
-                            'email' => $user->email,
-                            'name' => $user->name,
-                            'phone' => $user->name,
-                            'metadata' => [
-                                "user_id" => $user->id
-                            ]
-                        ]);
-
-                        $shop = new Shop();
-                        $shop->user_id = $user->id;
-                        $shop->city_id = $data['city_id'];
-                        $shop->is_a_personal_listing = true;
-                        $shop->address = $data['address'];
-                        $shop->latitude = $data['latitude'];
-                        $shop->longitude = $data['longitude'];
-                        $shop->stripe_customer_id = $stripeCustomer->id;
-                        $shop->save();
-                    }
-
-                    $shopId = $shop->id;
-                } else {
+                if ($data['is_a_shop_listing'] == true) {
                     $shopId = $data['shop_id'];
+                } else {
+                    //create a personal listing entry
+                    $stripeCustomer = $this->getStripeHandler()->createStripeCustomer($user);
+                    $userMeta = $this->getUserMetaHandler()->create(
+                        [
+                            'key' => UserMetaConstants::StripeCustomerId,
+                            'value' => $stripeCustomer->id
+                        ]
+                    );
+
+                    $personalListingData['user_id'] = $user->id;
+                    $personalListingData['address'] = $data['address'];
+                    $personalListingData['latitude'] = $data['latitude'];
+                    $personalListingData['longitude'] = $data['longitude'];
+                    $personalListing = $this->getPersonalListingHandler()->create($personalListingData);
                 }
 
-                $slugMain = str_replace(" ", "-", $data['name']);
-                $slug = $slugMain;
-                $i = 2;
-                while ($this->hasExistingSlug($slug)) {
-                    $slug = $slugMain . "-" . $i;
-                    $i++;
-                }
-
+                //save item
                 $item = new Item();
                 $item->user_id = $user->id;
-                $item->shop_id = $shopId;
+                $item->city_id = $data['city_id'];
                 $item->is_a_shop_listing = $data['is_a_shop_listing'];
                 $item->name = $data['name'];
-                $item->slug = $slug;
+                $item->slug = $this->generateSlug($data['name']);
+                $item->category_id = $data['pricing_category'] == "sell" ? ProductCategoryConstants::Sell : ProductCategoryConstants::Rent;
+                $item->quantity = $data['quantity'];
+
+                if ($data['is_a_shop_listing'] == true) {
+                    $item->shop_id = $shopId;
+                } else {
+                    $item->personal_listing_id = $personalListing->id;
+                }
                 if (isset($data['description'])) {
                     $item->description = $data['description'];
                 }
-                $item->category_id = $data['pricing_category'] == "sell" ? ProductCategoryConstants::Sell : ProductCategoryConstants::Rent;
-                $item->quantity = $data['quantity'];
-                $item->save();
 
+                $item->save();
                 $item = $item->fresh();
 
-                $imageIds = [];
+                //upload images
+                $this->uploadImages($data, $user, $item);
 
-                //upload main image
-                if (isset($data['image'])) {
-                    $file = new File();
-                    $file->name = $data['image_name'];
-                    $file->location = "images/items/" . Carbon::now()->timestamp . $user->id;
-                    $file->save();
-                    $image = str_replace('data:image/png;base64,', '', $data['image']);
-                    $image = str_replace('data:image/jpeg;base64,', '', $image);
-                    Storage::put("public/" . $file->location, base64_decode($image));
-
-                    $item->image_id = $file->id;
-                    $item->save();
-
-                    $imageIds[] = $file->id;
-                }
-
-                //upload sub images
-                if (isset($data['sub_images'])) {
-                    foreach ($data['sub_images'] as $key => $image) {
-                        $file = new File();
-                        $file->name = $image['name'];
-                        $file->location = "images/items/sub_images/" . Carbon::now()->timestamp . $user->id . $key;
-                        $file->save();
-                        $imageData = str_replace('data:image/png;base64,', '', $image['data']);
-                        $processedImage = str_replace('data:image/jpeg;base64,', '', $imageData);
-                        Storage::put("public/" . $file->location, base64_decode($processedImage));
-                        $imageIds[] = $file->id;
-                    }
-                }
-                if (count($imageIds) > 0) {
-                    $item->files()->sync($imageIds);
-                }
-
+                //set category
                 if ($item->category_id == ProductCategoryConstants::Sell) {
                     $sellableItem['item_id'] = $item->id;
                     if (isset($data['price'])) {
@@ -234,6 +170,10 @@ class ItemsHandler
                 return $item->fresh();
             } catch (ModelNotFoundException $th) {
                 throw $th;
+            } catch (ValidationException $th) {
+                throw new ValidationException($validator, 400);
+            } catch (Exception $th) {
+                throw $th;
             }
         });
     }
@@ -241,7 +181,7 @@ class ItemsHandler
     public function get($slug)
     {
         try {
-            $item = Item::with(['sellableItem', 'rentableItem', 'shop.city', 'user', 'files'])
+            $item = Item::with(['sellableItem', 'rentableItem', 'shop.city', 'user', 'files', 'shop.file'])
                 ->where('slug', $slug)->firstOrFail();
             return $item;
         } catch (ModelNotFoundException $th) {
@@ -384,6 +324,54 @@ class ItemsHandler
         }
     }
 
+    private function uploadImages($data, $user, $item)
+    {
+        $imageIds = [];
+
+        //upload main image
+        if (isset($data['image'])) {
+            $fileData = [
+                'name' => $data['image_name'],
+                'location' => "images/items/" . Carbon::now()->timestamp . $user->id,
+                'image_data' => $data['image']
+            ];
+            $file = $this->getFilesHandler()->create($fileData);
+            $item->image_id = $file->id;
+            $item->save();
+
+            $imageIds[] = $file->id;
+        }
+
+        //upload sub images
+        if (isset($data['sub_images'])) {
+            foreach ($data['sub_images'] as $key => $image) {
+                $fileData = [
+                    'name' => $image['name'],
+                    'location' => "images/items/sub_images/" . Carbon::now()->timestamp . $user->id . $key,
+                    'image_data' => $image['data']
+                ];
+                $file = $this->getFilesHandler()->create($fileData);
+                $imageIds[] = $file->id;
+            }
+        }
+        if (count($imageIds) > 0) {
+            $item->files()->sync($imageIds);
+        }
+    }
+
+
+    private function generateSlug($name)
+    {
+        $slugMain = str_replace(" ", "-", $name);
+        $slug = $slugMain;
+        $i = 2;
+        while ($this->hasExistingSlug($slug)) {
+            $slug = $slugMain . "-" . $i;
+            $i++;
+        }
+        return $slug;
+    }
+
     private function hasExistingSlug($slug)
     {
         $slugsCount = Item::where('slug', $slug)->count();
@@ -391,5 +379,25 @@ class ItemsHandler
             return false;
         }
         return true;
+    }
+
+    private function getUserMetaHandler(): UserMetaHandler
+    {
+        return app(UserMetaHandler::class);
+    }
+
+    private function getStripeHandler(): StripeHandler
+    {
+        return app(StripeHandler::class);
+    }
+
+    private function getPersonalListingHandler(): PersonalListingHandler
+    {
+        return app(PersonalListingHandler::class);
+    }
+
+    private function getFilesHandler(): FilesHandler
+    {
+        return app(FilesHandler::class);
     }
 }

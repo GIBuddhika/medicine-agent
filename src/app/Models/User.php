@@ -43,4 +43,9 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Shop::class);
     }
+
+    public function userMeta()
+    {
+        return $this->hasOne(UserMeta::class);
+    }
 }

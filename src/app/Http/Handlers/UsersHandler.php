@@ -28,7 +28,7 @@ class UsersHandler
         if ($user->id == $userId) {
             $shops = Shop::with(['city', 'file', 'shopAdmins'])
                 ->where('user_id', $userId)
-                ->where('is_a_personal_listing', filter_var($data['is_a_personal_listing'], FILTER_VALIDATE_BOOLEAN))
+                // ->where('is_a_personal_listing', filter_var($data['is_a_personal_listing'], FILTER_VALIDATE_BOOLEAN))
                 ->get();
             return $shops;
         } else {
@@ -40,7 +40,7 @@ class UsersHandler
     {
         $user = session(SessionConstants::User);
         if ($user->id == $userId) {
-            $itemsQ = Item::with(['sellableItem', 'rentableItem', 'shop.city'])
+            $itemsQ = Item::with(['sellableItem', 'rentableItem', 'shop.city', 'files'])
                 ->where('user_id', $userId);
 
             if (isset($data['searchTerm'])) {

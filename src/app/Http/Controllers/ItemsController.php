@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Handlers\ItemsHandler;
+use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -23,6 +24,8 @@ class ItemsController extends Controller
             return response($ex->validator->errors(), 400);
         } catch (ModelNotFoundException $ex) {
             return response([], 404);
+        } catch (Exception $ex) {
+            return response([], 500);
         }
     }
 
