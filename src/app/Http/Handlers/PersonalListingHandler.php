@@ -2,10 +2,10 @@
 
 namespace App\Http\Handlers;
 
-use App\Constants\SessionConstants;
 use App\Constants\ValidationMessageConstants;
 use App\Models\PersonalListing;
-use App\Models\UserMeta;
+use App\Rules\Phone;
+use Exception;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -15,7 +15,7 @@ class PersonalListingHandler
     {
         try {
             $rules = [
-                'city_id' => 'required|integer|exists:cities,id|nullable',
+                'phone' => array('required', new Phone),
                 'address' => 'required',
                 'latitude' => array('required', 'numeric', 'regex:/^[-]?(([0-8]?[0-9])\.(\d+))|(90(\.0+)?)$/'),
                 'longitude' => array('required', 'numeric', 'regex:/^[-]?((((1[0-7][0-9])|([0-9]?[0-9]))\.(\d+))|180(\.0+)?)$/'),
@@ -31,19 +31,22 @@ class PersonalListingHandler
 
             $validator = Validator::make($data, $rules, $messages);
             if ($validator->fails()) {
-                throw new ValidationException($validator, 400);
+                throw new ValidationException($validator);
             }
 
             $personalListing = new PersonalListing();
             $personalListing->user_id = $data['user_id'];
             $personalListing->address = $data['address'];
+            $personalListing->phone = $data['phone'];
             $personalListing->latitude = $data['latitude'];
             $personalListing->longitude = $data['longitude'];
             $personalListing->save();
 
             return $personalListing;
+        } catch (ValidationException $th) {
+            throw new ValidationException($validator);
         } catch (\Throwable $th) {
-            //throw $th;
+            throw new Exception($th);
         }
     }
 }

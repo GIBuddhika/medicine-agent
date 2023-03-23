@@ -9,9 +9,7 @@ use App\Constants\ValidationMessageConstants;
 use App\Models\City;
 use App\Models\File;
 use App\Models\Item;
-use App\Models\PersonalListing;
 use App\Models\Shop;
-use App\Rules\Phone;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -20,14 +18,13 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
-use Stripe\StripeClient;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class ItemsHandler
 {
     public function getAll($data)
     {
-        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'shop.city', 'files', 'shop.file']);
+        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'shop.file', 'personalListing.user']);
 
         if (isset($data['searchTerm'])) {
             $searchTerm = $data['searchTerm'];
@@ -67,7 +64,6 @@ class ItemsHandler
             'total' => $totalCount,
         ];
     }
-
 
     public function createItem($data)
     {
@@ -116,9 +112,9 @@ class ItemsHandler
                             'value' => $stripeCustomer->id
                         ]
                     );
-
                     $personalListingData['user_id'] = $user->id;
                     $personalListingData['address'] = $data['address'];
+                    $personalListingData['phone'] = $data['phone'];
                     $personalListingData['latitude'] = $data['latitude'];
                     $personalListingData['longitude'] = $data['longitude'];
                     $personalListing = $this->getPersonalListingHandler()->create($personalListingData);
@@ -127,7 +123,6 @@ class ItemsHandler
                 //save item
                 $item = new Item();
                 $item->user_id = $user->id;
-                $item->city_id = $data['city_id'];
                 $item->is_a_shop_listing = $data['is_a_shop_listing'];
                 $item->name = $data['name'];
                 $item->slug = $this->generateSlug($data['name']);
@@ -136,9 +131,13 @@ class ItemsHandler
 
                 if ($data['is_a_shop_listing'] == true) {
                     $item->shop_id = $shopId;
+                    $shop = Shop::find($shopId);
+                    $item->city_id = $shop->city_id;
                 } else {
                     $item->personal_listing_id = $personalListing->id;
+                    $item->city_id = $data['city_id'];
                 }
+
                 if (isset($data['description'])) {
                     $item->description = $data['description'];
                 }
@@ -171,8 +170,10 @@ class ItemsHandler
             } catch (ModelNotFoundException $th) {
                 throw $th;
             } catch (ValidationException $th) {
-                throw new ValidationException($validator, 400);
+                throw new ValidationException($th, 400);
             } catch (Exception $th) {
+                dd($th);
+                Log::info($th);
                 throw $th;
             }
         });
@@ -232,62 +233,70 @@ class ItemsHandler
                 throw new ValidationException($validator, 400);
             }
 
-            if ($data['is_a_shop_listing'] == false) {
-                $shop = Shop::where('user_id', $user->id)
-                    ->where('is_a_personal_listing', true)
-                    ->first();
-                $shopId = $shop->id;
-            } else {
-                $shopId = $data['shop_id'];
+            try {
+                $item->user_id = $user->id;
+                $item->city_id = $data['city_id'];
+                $item->is_a_shop_listing = $data['is_a_shop_listing'];
+                $item->name = $data['name'];
+                $item->slug = $this->generateSlug($data['name']);
+                $item->category_id = $data['pricing_category'] == "sell" ? ProductCategoryConstants::Sell : ProductCategoryConstants::Rent;
+                $item->quantity = $data['quantity'];
+
+                if ($data['is_a_shop_listing'] == true) {
+                    $shop = Shop::where('user_id', $user->id)
+                        ->where('is_a_personal_listing', true)
+                        ->first();
+                    $item->shop_id = $shop->id;
+                } else {
+                    $personalListing = $item->personalListing;
+                    $item->personal_listing_id = $personalListing->id;
+                }
+                if (isset($data['description'])) {
+                    $item->description = $data['description'];
+                }
+
+                $item->save();
+                $item = $item->fresh();
+            } catch (\Throwable $th) {
             }
 
-            $item->user_id = $user->id;
-            $item->shop_id = $shopId;
-            $item->is_a_shop_listing = $data['is_a_shop_listing'];
-            $item->name = $data['name'];
-            if (isset($data['description'])) {
-                $item->description = $data['description'];
-            }
-            $item->category_id = $data['pricing_category'] == "sell" ? ProductCategoryConstants::Sell : ProductCategoryConstants::Rent;
-            $item->quantity = $data['quantity'];
-            $item->save();
-
-            $item = $item->fresh();
 
             $imageIds = [];
 
             //upload main image
-            if (isset($data['image'])) {
-                $file = new File();
-                $file->name = $data['image_name'];
-                $file->location = "images/items/" . Carbon::now()->timestamp . $user->id;
-                $file->save();
-                $image = str_replace('data:image/png;base64,', '', $data['image']);
-                $image = str_replace('data:image/jpeg;base64,', '', $image);
-                Storage::put("public/" . $file->location, base64_decode($image));
+            $this->uploadImages($data, $user, $item, "update");
 
-                $item->image_id = $file->id;
-                $item->save();
+            // if (isset($data['image'])) {
+            //     $file = new File();
+            //     $file->name = $data['image_name'];
+            //     $file->location = "images/items/" . Carbon::now()->timestamp . $user->id;
+            //     $file->save();
+            //     $image = str_replace('data:image/png;base64,', '', $data['image']);
+            //     $image = str_replace('data:image/jpeg;base64,', '', $image);
+            //     Storage::put("public/" . $file->location, base64_decode($image));
 
-                $imageIds[] = $file->id;
-            }
+            //     $item->image_id = $file->id;
+            //     $item->save();
 
-            //upload sub images
-            if (isset($data['sub_images'])) {
-                foreach ($data['sub_images'] as $key => $image) {
-                    $file = new File();
-                    $file->name = $image['name'];
-                    $file->location = "images/items/sub_images/" . Carbon::now()->timestamp . $user->id . $key;
-                    $file->save();
-                    $imageData = str_replace('data:image/png;base64,', '', $image['data']);
-                    $processedImage = str_replace('data:image/jpeg;base64,', '', $imageData);
-                    Storage::put("public/" . $file->location, base64_decode($processedImage));
-                    $imageIds[] = $file->id;
-                }
-            }
-            if (count($imageIds) > 0) {
-                $item->files()->sync($imageIds);
-            }
+            //     $imageIds[] = $file->id;
+            // }
+
+            // //upload sub images
+            // if (isset($data['sub_images'])) {
+            //     foreach ($data['sub_images'] as $key => $image) {
+            //         $file = new File();
+            //         $file->name = $image['name'];
+            //         $file->location = "images/items/sub_images/" . Carbon::now()->timestamp . $user->id . $key;
+            //         $file->save();
+            //         $imageData = str_replace('data:image/png;base64,', '', $image['data']);
+            //         $processedImage = str_replace('data:image/jpeg;base64,', '', $imageData);
+            //         Storage::put("public/" . $file->location, base64_decode($processedImage));
+            //         $imageIds[] = $file->id;
+            //     }
+            // }
+            // if (count($imageIds) > 0) {
+            //     $item->files()->sync($imageIds);
+            // }
 
             if ($item->category_id == ProductCategoryConstants::Sell) {
                 $sellableItem['item_id'] = $item->id;
@@ -324,12 +333,21 @@ class ItemsHandler
         }
     }
 
-    private function uploadImages($data, $user, $item)
+    private function uploadImages($data, $user, $item, $action = "create")
     {
         $imageIds = [];
 
         //upload main image
         if (isset($data['image'])) {
+
+            if ($action == "update") {
+                //delete current image
+                $mainImage = $item->mainImage();
+                $item->files()->detach($mainImage->id);
+                $mainImage->delete();
+                Storage::delete("public/" . $mainImage->location);
+            }
+
             $fileData = [
                 'name' => $data['image_name'],
                 'location' => "images/items/" . Carbon::now()->timestamp . $user->id,
@@ -340,6 +358,20 @@ class ItemsHandler
             $item->save();
 
             $imageIds[] = $file->id;
+        }
+
+        //delete sub images
+        if (isset($data['deleted_sub_images']) && $action == "update") {
+            $files = $item->files->toArray();
+            foreach ($data['deleted_sub_images'] as $key => $deletedImageId) {
+                $fileIndex = array_search($deletedImageId, array_column($files, "id"));
+                if ($fileIndex) {
+                    $file = $files[$fileIndex];
+                    $item->files()->detach($deletedImageId);
+                    File::where('id', $deletedImageId)->delete();
+                    Storage::delete("public/" . $file['location']);
+                }
+            }
         }
 
         //upload sub images
@@ -355,7 +387,7 @@ class ItemsHandler
             }
         }
         if (count($imageIds) > 0) {
-            $item->files()->sync($imageIds);
+            $item->files()->syncWithoutDetaching($imageIds);
         }
     }
 

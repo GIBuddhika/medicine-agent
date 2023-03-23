@@ -33,4 +33,21 @@ class Item extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function city()
+    {
+        return $this->belongsTo(City::class);
+    }
+
+    public function personalListing()
+    {
+        return $this->belongsTo(PersonalListing::class);
+    }
+
+    public function mainImage()
+    {
+        return $this->files()
+            ->where('id', $this->image_id)
+            ->first();
+    }
 }

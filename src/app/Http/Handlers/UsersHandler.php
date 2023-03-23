@@ -40,7 +40,7 @@ class UsersHandler
     {
         $user = session(SessionConstants::User);
         if ($user->id == $userId) {
-            $itemsQ = Item::with(['sellableItem', 'rentableItem', 'shop.city', 'files'])
+            $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files','personalListing','shop'])
                 ->where('user_id', $userId);
 
             if (isset($data['searchTerm'])) {
