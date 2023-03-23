@@ -144,7 +144,6 @@ class ItemsHandler
 
                 $item->save();
                 $item = $item->fresh();
-
                 //upload images
                 $this->uploadImages($data, $user, $item);
 
@@ -235,7 +234,6 @@ class ItemsHandler
 
             try {
                 $item->user_id = $user->id;
-                $item->city_id = $data['city_id'];
                 $item->is_a_shop_listing = $data['is_a_shop_listing'];
                 $item->name = $data['name'];
                 $item->slug = $this->generateSlug($data['name']);
@@ -244,10 +242,12 @@ class ItemsHandler
 
                 if ($data['is_a_shop_listing'] == true) {
                     $shop = Shop::where('user_id', $user->id)
-                        ->where('is_a_personal_listing', true)
+                        ->where('id', $data['shop_id'])
                         ->first();
                     $item->shop_id = $shop->id;
+                    $item->city_id = $shop->city_id;
                 } else {
+                    $item->city_id = $data['city_id'];
                     $personalListing = $item->personalListing;
                     $item->personal_listing_id = $personalListing->id;
                 }
@@ -257,65 +257,41 @@ class ItemsHandler
 
                 $item->save();
                 $item = $item->fresh();
-            } catch (\Throwable $th) {
+
+                $imageIds = [];
+
+                //upload main image
+                $this->uploadImages($data, $user, $item, "update");
+                //set category
+                if ($item->category_id == ProductCategoryConstants::Sell) {
+                    $sellableItem['item_id'] = $item->id;
+                    if (isset($data['price'])) {
+                        $sellableItem['retail_price'] = $data['price'];
+                    }
+                    if (isset($data['wholesale_price'])) {
+                        $sellableItem['wholesale_price'] = $data['wholesale_price'];
+                    }
+                    if (isset($data['min_quantity'])) {
+                        $sellableItem['wholesale_minimum_quantity'] = $data['min_quantity'];
+                    }
+                    // dd($sellableItem);
+
+
+                    $item->sellableItem()->update($sellableItem);
+                } else if ($item->category_id == ProductCategoryConstants::Rent) {
+                    $rentableItem['item_id'] = $item->id;
+                    $rentableItem['price_per_month'] = $data['price'];
+                    $item->rentableItem()->update($rentableItem);
+                }
+                return $item->fresh();
+            } catch (ModelNotFoundException $th) {
+                throw $th;
+            } catch (ValidationException $th) {
+                throw new ValidationException($th, 400);
+            } catch (Exception $th) {
+                Log::info($th);
+                throw $th;
             }
-
-
-            $imageIds = [];
-
-            //upload main image
-            $this->uploadImages($data, $user, $item, "update");
-
-            // if (isset($data['image'])) {
-            //     $file = new File();
-            //     $file->name = $data['image_name'];
-            //     $file->location = "images/items/" . Carbon::now()->timestamp . $user->id;
-            //     $file->save();
-            //     $image = str_replace('data:image/png;base64,', '', $data['image']);
-            //     $image = str_replace('data:image/jpeg;base64,', '', $image);
-            //     Storage::put("public/" . $file->location, base64_decode($image));
-
-            //     $item->image_id = $file->id;
-            //     $item->save();
-
-            //     $imageIds[] = $file->id;
-            // }
-
-            // //upload sub images
-            // if (isset($data['sub_images'])) {
-            //     foreach ($data['sub_images'] as $key => $image) {
-            //         $file = new File();
-            //         $file->name = $image['name'];
-            //         $file->location = "images/items/sub_images/" . Carbon::now()->timestamp . $user->id . $key;
-            //         $file->save();
-            //         $imageData = str_replace('data:image/png;base64,', '', $image['data']);
-            //         $processedImage = str_replace('data:image/jpeg;base64,', '', $imageData);
-            //         Storage::put("public/" . $file->location, base64_decode($processedImage));
-            //         $imageIds[] = $file->id;
-            //     }
-            // }
-            // if (count($imageIds) > 0) {
-            //     $item->files()->sync($imageIds);
-            // }
-
-            if ($item->category_id == ProductCategoryConstants::Sell) {
-                $sellableItem['item_id'] = $item->id;
-                if (isset($data['price'])) {
-                    $sellableItem['retail_price'] = $data['price'];
-                }
-                if (isset($data['wholesale_price'])) {
-                    $sellableItem['wholesale_price'] = $data['wholesale_price'];
-                }
-                if (isset($data['min_quantity'])) {
-                    $sellableItem['wholesale_minimum_quantity'] = $data['min_quantity'];
-                }
-                $item->sellableItem()->create($sellableItem);
-            } else if ($item->category_id == ProductCategoryConstants::Rent) {
-                $rentableItem['item_id'] = $item->id;
-                $rentableItem['price_per_month'] = $data['price'];
-                $item->rentableItem()->create($rentableItem);
-            }
-            return $item->fresh();
         });
     }
 
