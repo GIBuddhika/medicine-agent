@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Constants\ProductCategoryConstants;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -49,5 +50,10 @@ class Item extends Model
         return $this->files()
             ->where('id', $this->image_id)
             ->first();
+    }
+
+    public function orders()
+    {
+        return $this->belongsToMany(Order::class);
     }
 }

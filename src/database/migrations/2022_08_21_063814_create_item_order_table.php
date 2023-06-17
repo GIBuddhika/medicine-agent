@@ -19,6 +19,7 @@ class CreateItemOrderTable extends Migration
             $table->unsignedBigInteger('order_id');
             $table->integer('quantity');
             $table->double('price');
+            $table->integer('duration')->nullable();
             $table->timestamps();
             $table->softDeletes();
 

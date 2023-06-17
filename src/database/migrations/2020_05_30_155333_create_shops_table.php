@@ -21,7 +21,6 @@ class CreateShopsTable extends Migration
             $table->string('website')->nullable();
             $table->decimal('latitude', 17, 15);
             $table->decimal('longitude', 17, 15);
-            $table->string('stripe_customer_id');
             $table->timestamps();
             $table->softDeletes();
 

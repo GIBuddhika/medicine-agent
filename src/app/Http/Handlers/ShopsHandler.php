@@ -113,19 +113,6 @@ class ShopsHandler
         $shop->latitude = $data['latitude'];
         $shop->longitude = $data['longitude'];
 
-        $stripe = new StripeClient(config('app.STRIPE_SECRET'));
-        $stripeCustomer =  $stripe->customers->create([
-            'email' => $user->email,
-            'name' => $data['name'],
-            'phone' => $data['phone'],
-            'address[line1]' => $data['address'],
-            'metadata' => [
-                "owner_id" => $user->id,
-                "slug" => $slug
-            ]
-        ]);
-        $shop->stripe_customer_id = $stripeCustomer->id;
-
         $shop->save();
 
         $shop->shopAdmins()->attach($data['shop_admin_ids']);
@@ -199,16 +186,6 @@ class ShopsHandler
         }
         $shop->latitude = $data['latitude'];
         $shop->longitude = $data['longitude'];
-
-        if ($shop->isDirty('name') || $shop->isDirty('phone') || $shop->isDirty('address')) {
-            $stripe = new StripeClient(config('app.STRIPE_SECRET'));
-            $stripe->customers->update($shop->stripe_customer_id, [
-                'name' => $data['name'],
-                'phone' => $data['phone'],
-                'address[line1]' => $data['address'],
-            ]);
-        }
-
         $shop->save();
         return $shop;
     }

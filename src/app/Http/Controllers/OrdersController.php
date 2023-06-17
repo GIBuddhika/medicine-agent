@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Handlers\ItemsHandler;
 use App\Http\Handlers\OrdersHandler;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Stripe\Exception\CardException;
+use Stripe\Exception\OAuth\InvalidRequestException;
 
 class OrdersController extends Controller
 {
@@ -14,13 +15,19 @@ class OrdersController extends Controller
     public function create(Request $request)
     {
         try {
-            $item = $this
+            $order = $this
                 ->getOrdersHandler()
-                ->create($request->toArray());
+                ->handleCreateOrderRequest($request->toArray());
 
-            return $item;
+            return $order;
         } catch (ValidationException $ex) {
             return response($ex->validator->errors(), 400);
+        } catch (CardException $ex) {
+            return response($ex->getMessage(), 422);
+        } catch (InvalidRequestException $ex) {
+            return response($ex->getMessage(), 422);
+        } catch (Exception $ex) {
+            return response($ex->getMessage(), 500);
         }
     }
     private function getOrdersHandler(): OrdersHandler

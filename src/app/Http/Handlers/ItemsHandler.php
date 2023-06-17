@@ -4,7 +4,6 @@ namespace App\Http\Handlers;
 
 use App\Constants\ProductCategoryConstants;
 use App\Constants\SessionConstants;
-use App\Constants\UserMetaConstants;
 use App\Constants\ValidationMessageConstants;
 use App\Models\City;
 use App\Models\File;
@@ -37,19 +36,10 @@ class ItemsHandler
 
         if (isset($data['cityId'])) {
             $cityId = $data['cityId'];
-            $itemsQ->where(function ($iquery) use ($cityId) {
-                $iquery->whereHas('shop', function ($query) use ($cityId) {
-                    $query->where('city_id', $cityId);
-                });
-            });
+            $itemsQ->where('city_id', $cityId);
         } else if (isset($data['districtId'])) {
             $cities = City::where('district_id', $data['districtId'])->pluck('id')->toArray();
-            // dd($cities);
-            $itemsQ->where(function ($iquery) use ($cities) {
-                $iquery->whereHas('shop', function ($query) use ($cities) {
-                    $query->whereIn('city_id', $cities);
-                });
-            });
+            $itemsQ->whereIn('city_id', $cities);
         }
 
         if ($data['page'] && $data['per_page']) {
@@ -105,13 +95,6 @@ class ItemsHandler
                     $shopId = $data['shop_id'];
                 } else {
                     //create a personal listing entry
-                    $stripeCustomer = $this->getStripeHandler()->createStripeCustomer($user);
-                    $userMeta = $this->getUserMetaHandler()->create(
-                        [
-                            'key' => UserMetaConstants::StripeCustomerId,
-                            'value' => $stripeCustomer->id
-                        ]
-                    );
                     $personalListingData['user_id'] = $user->id;
                     $personalListingData['address'] = $data['address'];
                     $personalListingData['phone'] = $data['phone'];
@@ -181,7 +164,7 @@ class ItemsHandler
     public function get($slug)
     {
         try {
-            $item = Item::with(['sellableItem', 'rentableItem', 'shop.city', 'user', 'files', 'shop.file'])
+            $item = Item::with(['sellableItem', 'rentableItem', 'city', 'shop.city', 'user', 'files', 'shop.file', 'personalListing'])
                 ->where('slug', $slug)->firstOrFail();
             return $item;
         } catch (ModelNotFoundException $th) {
@@ -367,6 +350,19 @@ class ItemsHandler
         }
     }
 
+    public function getPriceByQuantity(int $itemId, int $itemQuantity): int
+    {
+        $item = Item::where('id', $itemId)->with('sellableItem', 'rentableItem')->first();
+
+        if ($item->category_id == ProductCategoryConstants::Sell) {
+            if ((int) $itemQuantity >= (int)$item->sellableItem->wholesale_minimum_quantity && $item->sellableItem->wholesale_price) {
+                return (int) $item->sellableItem->wholesale_price;
+            }
+            return (int)$item->sellableItem->retail_price;
+        } else {
+            return (int) $item->rentableItem->price_per_month;
+        }
+    }
 
     private function generateSlug($name)
     {
@@ -392,11 +388,6 @@ class ItemsHandler
     private function getUserMetaHandler(): UserMetaHandler
     {
         return app(UserMetaHandler::class);
-    }
-
-    private function getStripeHandler(): StripeHandler
-    {
-        return app(StripeHandler::class);
     }
 
     private function getPersonalListingHandler(): PersonalListingHandler
