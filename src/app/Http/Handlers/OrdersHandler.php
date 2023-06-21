@@ -5,8 +5,10 @@ namespace App\Http\Handlers;
 use App\Constants\OrderStatusConstants;
 use App\Constants\SessionConstants;
 use App\Constants\ValidationMessageConstants;
-use App\ItemOrder;
+use App\Models\ItemOrder;
 use App\Models\Order;
+use App\Models\Shop;
+use App\Models\User;
 use App\PaymentService\PaymentService;
 use App\Rules\RequiredIfARentableItem;
 use Exception;
@@ -60,7 +62,7 @@ class OrdersHandler
     {
         $order = new Order();
         $order->user_id = $user->id;
-        $order->status = OrderStatusConstants::NEW;
+        $order->status = OrderStatusConstants::PENDING;
         $order->save();
         return $order;
     }
@@ -86,6 +88,88 @@ class OrdersHandler
             $price = $this->getItemsHandler()->getPriceByQuantity($orderItem['item_id'], $orderItem['quantity']);
             $this->getItemOrderHandler()->create($order, $orderItem, $price);
         }
+    }
+
+    public function getUnCollectedOrderItems()
+    {
+        $user = session(SessionConstants::User);
+
+        $unColletedShopOrderItems = $this->getUnCollectedShopOrderItems($user->id);
+        $unCollectedPersonalOrderItems = $this->getUnCollectedPersonalOrderItems($user->id);
+
+        $shops = Shop::whereIn('id', $unColletedShopOrderItems->keys())->get();
+        $users = User::whereIn('id', $unCollectedPersonalOrderItems->keys())->get();
+
+        return [
+            'unColletedShopOrderItems' => $unColletedShopOrderItems,
+            'unCollectedPersonalOrderItems' => $unCollectedPersonalOrderItems,
+            'shops' => $shops,
+            'users' => $users
+        ];
+    }
+
+    private function getUnCollectedShopOrderItems($userId)
+    {
+        $shopOrderItems = DB::select(
+            DB::raw(
+                "SELECT 
+                item_order.*,
+                orders.created_at as order_created_at,
+                orders.user_id as user_id,
+                items.id as item_id,
+                orders.status as status,
+                items.shop_id,
+                items.image_id,
+                files.location
+                FROM `item_order` 
+                join orders on item_order.order_id=orders.id
+                join items on item_order.item_id=items.id
+                join files on files.id=items.image_id
+                where status=1 AND orders.user_id=$userId and items.shop_id is not null 
+                order By order_created_at DESC
+            "
+            )
+        );
+
+        $unColletedShopOrderItems = ItemOrder::hydrate($shopOrderItems)
+            ->groupBy('shop_id');
+
+        return $unColletedShopOrderItems;
+    }
+
+    private function getUnCollectedPersonalOrderItems($userId)
+    {
+        $personalOrderItems = DB::select(
+            DB::raw(
+                "SELECT 
+                item_order.*,
+                orders.created_at as order_created_at,
+                orders.user_id as user_id,
+                items.id as item_id,
+                orders.status as status,
+                items.shop_id,
+                personal_listings.user_id as personal_listing_user_id,
+                personal_listings.address,
+                personal_listings.phone,
+                personal_listings.latitude,
+                personal_listings.longitude,
+                items.image_id,
+                files.location
+                FROM `item_order` 
+                join orders on item_order.order_id=orders.id
+                join items on item_order.item_id=items.id
+                join personal_listings on items.personal_listing_id=personal_listings.id
+                join files on files.id=items.image_id
+                where status=1 AND orders.user_id=$userId and items.shop_id is null 
+                order By order_created_at DESC
+            "
+            )
+        );
+
+        $uncollectedPersonalProducts = ItemOrder::hydrate($personalOrderItems)
+            ->groupBy('personal_listing_user_id');
+
+        return $uncollectedPersonalProducts;
     }
 
     private function validateOrderData(array $orderData)

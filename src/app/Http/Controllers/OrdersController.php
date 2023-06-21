@@ -30,6 +30,26 @@ class OrdersController extends Controller
             return response($ex->getMessage(), 500);
         }
     }
+
+    public function getUnCollectedOrderItems(Request $request)
+    {
+        try {
+            $orders = $this
+                ->getOrdersHandler()
+                ->getUnCollectedOrderItems($request->toArray());
+
+            return $orders;
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
+        } catch (CardException $ex) {
+            return response($ex->getMessage(), 422);
+        } catch (InvalidRequestException $ex) {
+            return response($ex->getMessage(), 422);
+        } catch (Exception $ex) {
+            return response($ex->getMessage(), 500);
+        }
+    }
+
     private function getOrdersHandler(): OrdersHandler
     {
         return app(OrdersHandler::class);

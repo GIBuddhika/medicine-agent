@@ -4,6 +4,7 @@ namespace App\Constants;
 
 class OrderStatusConstants
 {
-    const NEW = 0;
+    const PENDING = 0;
     const SUCCESS = 1;
+    const COLLECTED = 2;
 }

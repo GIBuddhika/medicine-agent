@@ -53,6 +53,7 @@ Route::prefix('items')->group(function () {
 Route::prefix('orders')->group(function () {
     Route::middleware(['customer'])->group(function () {
         Route::post('/', OrdersController::class . '@create');
+        Route::get('/un-collected', OrdersController::class . '@getUnCollectedOrderItems');
     });
 });
 
