@@ -39,12 +39,19 @@ class OrdersController extends Controller
                 ->getUnCollectedOrderItems($request->toArray());
 
             return $orders;
-        } catch (ValidationException $ex) {
-            return response($ex->validator->errors(), 400);
-        } catch (CardException $ex) {
-            return response($ex->getMessage(), 422);
-        } catch (InvalidRequestException $ex) {
-            return response($ex->getMessage(), 422);
+        } catch (Exception $ex) {
+            return response($ex->getMessage(), 500);
+        }
+    }
+
+    public function getCollectedOrderItems(Request $request)
+    {
+        try {
+            $orders = $this
+                ->getOrdersHandler()
+                ->getCollectedOrderItems($request->toArray());
+
+            return $orders;
         } catch (Exception $ex) {
             return response($ex->getMessage(), 500);
         }
