@@ -17,7 +17,6 @@ class CreatePersonalListingsTable extends Migration
             $table->id();
             $table->unsignedBigInteger('user_id');
             $table->string('address');
-            $table->string('phone')->nullable();
             $table->decimal('latitude', 17, 15);
             $table->decimal('longitude', 17, 15);
 

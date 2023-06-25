@@ -97,7 +97,6 @@ class ItemsHandler
                     //create a personal listing entry
                     $personalListingData['user_id'] = $user->id;
                     $personalListingData['address'] = $data['address'];
-                    $personalListingData['phone'] = $data['phone'];
                     $personalListingData['latitude'] = $data['latitude'];
                     $personalListingData['longitude'] = $data['longitude'];
                     $personalListing = $this->getPersonalListingHandler()->create($personalListingData);
