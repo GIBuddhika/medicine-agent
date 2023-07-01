@@ -11,7 +11,7 @@ use Closure;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 
-class Customer
+class ShopAdmin
 {
     public function handle(Request $request, Closure $next)
     {
@@ -23,7 +23,8 @@ class Customer
                 ->where('token', '=', $token)
                 ->where('expire_at', '>', Carbon::now())
                 ->whereHas('user', function ($query) {
-                    $query->where('is_admin', 0);
+                    $query->where('is_admin', 1)
+                        ->whereNotNull('owner_id');
                 })
                 ->firstOrFail();
         } catch (ModelNotFoundException $ex) {
@@ -32,7 +33,7 @@ class Customer
 
         session([
             SessionConstants::User => $securityToken->user,
-            SessionConstants::UserRole => UserRoleConstants::CUSTOMER,
+            SessionConstants::UserRole => UserRoleConstants::SHOP_ADMIN,
         ]);
 
         return $next($request);

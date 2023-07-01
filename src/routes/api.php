@@ -1,5 +1,6 @@
 <?php
 
+use App\Constants\UserRoleConstants;
 use \App\Http\Controllers\AuthController;
 use App\Http\Controllers\DistrictsController;
 use App\Http\Controllers\ItemsController;
@@ -22,9 +23,11 @@ Route::prefix('users')->group(function () {
     Route::middleware(['logged_in_user'])->group(function () {
         Route::get('/{id}', UsersController::class . '@get');
     });
-    Route::middleware(['admin'])->group(function () {
+    Route::middleware('any_role:' . UserRoleConstants::SHOP_ADMIN . ',' . UserRoleConstants::ADMIN . '')->group(function () {
         Route::get('/{id}/shops', UsersController::class . '@getShops');
         Route::get('/{id}/items', UsersController::class . '@getItems');
+    });
+    Route::middleware(['admin'])->group(function () {
         Route::get('/{id}/shop-admins', UsersController::class . '@getShopAdmins');
     });
 });
@@ -43,7 +46,7 @@ Route::prefix('shops')->group(function () {
 Route::prefix('items')->group(function () {
     Route::get('/', ItemsController::class . '@all');
     Route::get('/{slug}', ItemsController::class . '@get');
-    Route::middleware(['admin',])->group(function () {
+    Route::middleware('any_role:' . UserRoleConstants::SHOP_ADMIN . ',' . UserRoleConstants::ADMIN . '')->group(function () {
         Route::post('/', ItemsController::class . '@create');
         Route::patch('/{id}', ItemsController::class . '@update');
         Route::delete('/{id}', ItemsController::class . '@delete');
@@ -55,6 +58,15 @@ Route::prefix('orders')->group(function () {
         Route::post('/', OrdersController::class . '@create');
         Route::get('/un-collected', OrdersController::class . '@getUnCollectedOrderItems');
         Route::get('/collected', OrdersController::class . '@getCollectedOrderItems');
+    });
+});
+
+Route::prefix('admin')->group(function () {
+    Route::prefix('orders')->group(function () {
+        Route::middleware(['admin'])->group(function () {
+            Route::get('/un-collected', OrdersController::class . '@getUnCollectedOrderItemsAdmin');
+            Route::get('/collected', OrdersController::class . '@getCollectedOrderItemsAdmin');
+        });
     });
 });
 

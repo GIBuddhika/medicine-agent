@@ -57,6 +57,19 @@ class OrdersController extends Controller
         }
     }
 
+    public function getUnCollectedOrderItemsAdmin(Request $request)
+    {
+        try {
+            $orders = $this
+                ->getOrdersHandler()
+                ->getUnCollectedOrderItemsAdmin($request->toArray());
+
+            return $orders;
+        } catch (Exception $ex) {
+            return response($ex->getMessage(), 500);
+        }
+    }
+
     private function getOrdersHandler(): OrdersHandler
     {
         return app(OrdersHandler::class);

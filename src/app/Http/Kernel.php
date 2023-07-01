@@ -65,6 +65,8 @@ class Kernel extends HttpKernel
         'logged_in_user' => \App\Http\Middleware\LoggedInUser::class,
         'customer' => \App\Http\Middleware\Customer::class,
         'admin' => \App\Http\Middleware\Admin::class,
+        'shop_admin' => \App\Http\Middleware\ShopAdmin::class,
+        'any_role' => \App\Http\Middleware\AnyRole::class,
     ];
 
     /**

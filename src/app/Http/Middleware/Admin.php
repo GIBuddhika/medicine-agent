@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Constants\HeaderConstants;
 use App\Constants\SessionConstants;
+use App\Constants\UserRoleConstants;
 use App\Models\AuthSession;
 use Carbon\Carbon;
 use Closure;
@@ -29,7 +30,10 @@ class Admin
             return response(['error' => 'invalid_security_token'], 401);
         }
 
-        session([SessionConstants::User => $securityToken->user]);
+        session([
+            SessionConstants::User => $securityToken->user,
+            SessionConstants::UserRole => UserRoleConstants::ADMIN,
+        ]);
 
         return $next($request);
     }

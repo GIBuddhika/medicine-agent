@@ -4,6 +4,7 @@ namespace App\Http\Handlers;
 
 use App\Constants\ProductCategoryConstants;
 use App\Constants\SessionConstants;
+use App\Constants\UserRoleConstants;
 use App\Constants\ValidationMessageConstants;
 use App\Models\City;
 use App\Models\File;
@@ -104,7 +105,6 @@ class ItemsHandler
 
                 //save item
                 $item = new Item();
-                $item->user_id = $user->id;
                 $item->is_a_shop_listing = $data['is_a_shop_listing'];
                 $item->name = $data['name'];
                 $item->slug = $this->generateSlug($data['name']);
@@ -115,9 +115,11 @@ class ItemsHandler
                     $item->shop_id = $shopId;
                     $shop = Shop::find($shopId);
                     $item->city_id = $shop->city_id;
+                    $item->user_id = $shop->user_id;
                 } else {
                     $item->personal_listing_id = $personalListing->id;
                     $item->city_id = $data['city_id'];
+                    $item->user_id = $user->id;
                 }
 
                 if (isset($data['description'])) {
@@ -174,10 +176,23 @@ class ItemsHandler
     public function updateItem($id, $data)
     {
         $user = session(SessionConstants::User);
+        $userRole = session(SessionConstants::UserRole);
+
         try {
-            $item = Item::where('id', $id)
-                ->where('user_id', $user->id)
-                ->firstOrFail();
+            $itemQ = Item::with('shop.shopAdmins')
+                ->where('id', $id);
+
+            if ($userRole == UserRoleConstants::SHOP_ADMIN) {
+                //checking ShopAdmin has access to the shop
+                $itemQ->whereHas('shop', function ($query) use ($user) {
+                    $query->whereHas('shopAdmins', function ($query1) use ($user) {
+                        $query1->where('user_id', $user->id);
+                    });
+                });
+            } else {
+                $itemQ->where('user_id', $user->id);
+            }
+            $item = $itemQ->firstOrFail();
         } catch (ModelNotFoundException $th) {
             throw new NotFoundHttpException(404);
         }
@@ -215,17 +230,15 @@ class ItemsHandler
             }
 
             try {
-                $item->user_id = $user->id;
+                // $item->user_id = $user->id;
                 $item->is_a_shop_listing = $data['is_a_shop_listing'];
                 $item->name = $data['name'];
-                $item->slug = $this->generateSlug($data['name']);
+                // $item->slug = $this->generateSlug($data['name']);
                 $item->category_id = $data['pricing_category'] == "sell" ? ProductCategoryConstants::Sell : ProductCategoryConstants::Rent;
                 $item->quantity = $data['quantity'];
 
                 if ($data['is_a_shop_listing'] == true) {
-                    $shop = Shop::where('user_id', $user->id)
-                        ->where('id', $data['shop_id'])
-                        ->first();
+                    $shop = $item->shop;
                     $item->shop_id = $shop->id;
                     $item->city_id = $shop->city_id;
                 } else {

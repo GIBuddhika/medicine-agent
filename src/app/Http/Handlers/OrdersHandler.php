@@ -253,7 +253,6 @@ class OrdersHandler
         return $collectedPersonalProducts;
     }
 
-
     private function validateOrderData(array $orderData)
     {
         $rules = [
@@ -295,6 +294,24 @@ class OrdersHandler
         }
 
         return $total;
+    }
+
+    public function getUnCollectedOrderItemsAdmin()
+    {
+        $user = session(SessionConstants::User);
+
+        $unColletedShopOrderItems = $this->getUnCollectedShopOrderItems($user->id);
+        $unCollectedPersonalOrderItems = $this->getUnCollectedPersonalOrderItems($user->id);
+
+        $shops = Shop::whereIn('id', $unColletedShopOrderItems->keys())->get();
+        $users = User::whereIn('id', $unCollectedPersonalOrderItems->keys())->get();
+
+        return [
+            'unColletedShopOrderItems' => $unColletedShopOrderItems,
+            'unCollectedPersonalOrderItems' => $unCollectedPersonalOrderItems,
+            'shops' => $shops,
+            'users' => $users
+        ];
     }
 
     private function getPaymentService(): PaymentService
