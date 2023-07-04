@@ -3,12 +3,15 @@
 namespace App\Http\Handlers;
 
 use App\Constants\SessionConstants;
+use App\Constants\UserRoleConstants;
 use App\Constants\ValidationMessageConstants;
 use App\Models\City;
 use App\Models\File;
+use App\Models\Item;
 use App\Models\Shop;
 use App\Rules\Phone;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -188,6 +191,21 @@ class ShopsHandler
         $shop->longitude = $data['longitude'];
         $shop->save();
         return $shop;
+    }
+
+    public function geItems($shopId)
+    {
+        $user = session(SessionConstants::User);
+        $userRole = session(SessionConstants::UserRole);
+        
+        $items = Item::with('shop')
+            ->whereHas('shop', function ($query) use ($shopId) {
+                $query->where('shop_id', $shopId);
+            })
+            ->where('user_id', $user->id)
+            ->get();
+
+        return $items;
     }
 
     private function hasExistingSlug($slug)

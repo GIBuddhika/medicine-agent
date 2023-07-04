@@ -4,6 +4,7 @@ namespace App\Http\Handlers;
 
 use App\Constants\OrderStatusConstants;
 use App\Constants\SessionConstants;
+use App\Constants\UserRoleConstants;
 use App\Constants\ValidationMessageConstants;
 use App\Models\ItemOrder;
 use App\Models\Order;
@@ -12,10 +13,10 @@ use App\Models\User;
 use App\PaymentService\PaymentService;
 use App\Rules\RequiredIfARentableItem;
 use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
-use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\CardException;
 use Stripe\Exception\OAuth\InvalidRequestException;
 
@@ -296,22 +297,96 @@ class OrdersHandler
         return $total;
     }
 
-    public function getUnCollectedOrderItemsAdmin()
+    public function getUnCollectedShopOrderItemsForAdmin(array $data)
     {
         $user = session(SessionConstants::User);
+        $userRole = session(SessionConstants::UserRole);
 
-        $unColletedShopOrderItems = $this->getUnCollectedShopOrderItems($user->id);
-        $unCollectedPersonalOrderItems = $this->getUnCollectedPersonalOrderItems($user->id);
+        $shopIds = [];
 
-        $shops = Shop::whereIn('id', $unColletedShopOrderItems->keys())->get();
-        $users = User::whereIn('id', $unCollectedPersonalOrderItems->keys())->get();
+        if ($userRole == UserRoleConstants::ADMIN) {
+            $userId = $user->id;
+            if (isset($data['shop_id'])) {
+                $shopIds[] = $data['shop_id'];
+            }
+        } else if ($userRole == UserRoleConstants::SHOP_ADMIN) {
+            $userId = $user->owner_id;
+            $assignedShops = $user->shops;
+            if (isset($data['shop_id'])) {
+                $shopId = $data['shop_id'];
+                $shopIndex = collect($assignedShops)->search(function ($shop) use ($shopId) {
+                    return $shop->id == $shopId;
+                });
+                if ($shopIndex !== false) {
+                    $shopIds[] = $shopId;
+                } else {
+                    throw new ModelNotFoundException();
+                }
+            } else {
+                $shopIds = $assignedShops->pluck('id')->toArray();
+            }
+        }
 
+        $shopIdsString = implode(",", $shopIds);
+
+        $orderId = null;
+        if (isset($data['order_id'])) {
+            $orderId = $data['order_id'];
+        }
+        $itemId = null;
+        if (isset($data['product_id'])) {
+            $itemId = $data['product_id'];
+        }
+        $date = null;
+        if (isset($data['date'])) {
+            $date = $data['date'];
+        }
+        $phone = null;
+        if (isset($data['phone'])) {
+            $phone = $data['phone'];
+        }
+
+        $unColletedShopOrderItems = $this->getUnCollectedShopOrderItemsAdmin($shopIdsString, $userId, $orderId, $itemId, $date, $phone);
+        $users = User::whereIn('id', $unColletedShopOrderItems->keys())->get();
         return [
-            'unColletedShopOrderItems' => $unColletedShopOrderItems,
-            'unCollectedPersonalOrderItems' => $unCollectedPersonalOrderItems,
-            'shops' => $shops,
+            'order_items' => $unColletedShopOrderItems,
             'users' => $users
         ];
+    }
+
+    private function getUnCollectedShopOrderItemsAdmin($shopIdsString = "", $userId, $orderId, $itemId, $date, $phone)
+    {
+        $rawQuery = "SELECT 
+            item_order.*,
+            orders.created_at as order_created_at,
+            orders.user_id as order_user_id,
+            items.id as item_id,
+            orders.status as status,
+            items.shop_id,
+            items.image_id,
+            files.location
+            FROM `item_order` 
+            join orders on item_order.order_id=orders.id
+            join items on item_order.item_id=items.id
+            join files on files.id=items.image_id
+            join users on users.id=orders.user_id
+            where status=" . OrderStatusConstants::SUCCESS . "
+            AND items.user_id = $userId
+            " . (($itemId != null) ? "AND item_order.item_id = $itemId " : "") . "
+            " . (($phone != null) ? "AND users.phone LIKE '%$phone%' " : "") . "
+            " . (($date != null) ? "AND orders.created_at LIKE '$date%' " : "") . "
+            " . (($orderId != null) ? "AND orders.id = $orderId " : "") . "
+            " . (($shopIdsString != "") ? "AND items.shop_id IN ($shopIdsString) " : "AND items.shop_id is not null ") . "
+            order By order_created_at DESC";
+
+        $shopOrderItems = DB::select(
+            DB::raw($rawQuery)
+        );
+
+        $unColletedShopOrderItems = ItemOrder::hydrate($shopOrderItems)
+            ->groupBy('order_user_id');
+
+        return $unColletedShopOrderItems;
     }
 
     private function getPaymentService(): PaymentService

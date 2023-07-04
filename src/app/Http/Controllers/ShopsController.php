@@ -76,6 +76,21 @@ class ShopsController extends Controller
         }
     }
 
+    public function geItems(Request $request, int $id)
+    {
+        try {
+            $shop = $this
+                ->getShopsHandler()
+                ->geItems($id, $request->toArray());
+
+            return response($shop, 201);
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
+        } catch (ModelNotFoundException $ex) {
+            return response([], 404);
+        }
+    }
+
     private function getShopsHandler(): ShopsHandler
     {
         return app(ShopsHandler::class);

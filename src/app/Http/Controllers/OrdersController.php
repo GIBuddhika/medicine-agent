@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Handlers\OrdersHandler;
 use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Stripe\Exception\CardException;
@@ -57,14 +58,16 @@ class OrdersController extends Controller
         }
     }
 
-    public function getUnCollectedOrderItemsAdmin(Request $request)
+    public function getUnCollectedShopOrderItemsForAdmin(Request $request)
     {
         try {
             $orders = $this
                 ->getOrdersHandler()
-                ->getUnCollectedOrderItemsAdmin($request->toArray());
+                ->getUnCollectedShopOrderItemsForAdmin($request->toArray());
 
             return $orders;
+        } catch (ModelNotFoundException $ex) {
+            return response([], 404);
         } catch (Exception $ex) {
             return response($ex->getMessage(), 500);
         }

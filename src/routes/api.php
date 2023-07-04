@@ -40,6 +40,7 @@ Route::prefix('shops')->group(function () {
         Route::post('/', ShopsController::class . '@create');
         Route::patch('/{id}', ShopsController::class . '@update');
         Route::delete('/{id}', ShopsController::class . '@delete');
+        Route::get('/{id}/items', ShopsController::class . '@geItems');
     });
 });
 
@@ -63,8 +64,8 @@ Route::prefix('orders')->group(function () {
 
 Route::prefix('admin')->group(function () {
     Route::prefix('orders')->group(function () {
-        Route::middleware(['admin'])->group(function () {
-            Route::get('/un-collected', OrdersController::class . '@getUnCollectedOrderItemsAdmin');
+        Route::middleware('any_role:' . UserRoleConstants::SHOP_ADMIN . ',' . UserRoleConstants::ADMIN . '')->group(function () {
+            Route::get('/shops/un-collected', OrdersController::class . '@getUnCollectedShopOrderItemsForAdmin');
             Route::get('/collected', OrdersController::class . '@getCollectedOrderItemsAdmin');
         });
     });
