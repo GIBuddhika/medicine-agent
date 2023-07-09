@@ -2,18 +2,17 @@
 
 namespace App\Http\Handlers;
 
+use App\Constants\AccountTypeConstants;
 use App\Constants\SessionConstants;
 use App\Constants\ValidationMessageConstants;
 use App\Models\Item;
 use App\Models\Shop;
 use App\Models\User;
 use App\Rules\Phone;
-use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class ShopAdminsHandler
 {
@@ -46,6 +45,7 @@ class ShopAdminsHandler
             $user->password = Hash::make($data['password']);
             $user->is_admin = 1;
             $user->owner_id = session(SessionConstants::User)->id;
+            $user->admin_account_type = AccountTypeConstants::SHOP;
             $user->save();
 
             $user->shops()->attach($data['shop_ids']);

@@ -112,4 +112,22 @@ class UsersHandler
             throw new ModelNotFoundException();
         }
     }
+
+    public function getPersonalItems(int $userId)
+    {
+        $user = session(SessionConstants::User);
+        if ($user->id != $userId) {
+            throw new ModelNotFoundException();
+        }
+
+        $items = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'personalListing'])
+            ->where('is_a_shop_listing', false)
+            ->where('user_id', $userId)
+            ->get();
+
+        return [
+            'data' => $items,
+            'total' => count($items),
+        ];
+    }
 }

@@ -67,6 +67,19 @@ class UsersController extends Controller
         }
     }
 
+    public function getPersonalItems(int $id)
+    {
+        try {
+            $shops = $this
+                ->getUsersHandler()
+                ->getPersonalItems($id);
+
+            return $shops;
+        } catch (ModelNotFoundException $ex) {
+            return response([], 404);
+        }
+    }
+
     private function getUsersHandler(): UsersHandler
     {
         return app(UsersHandler::class);

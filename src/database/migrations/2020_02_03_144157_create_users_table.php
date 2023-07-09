@@ -16,6 +16,7 @@ class CreateUsersTable extends Migration
             $table->string('password');
             $table->boolean('is_admin')->default(false);
             $table->boolean('owner_id')->nullable();
+            $table->tinyInteger('admin_account_type')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

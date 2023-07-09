@@ -2,6 +2,7 @@
 
 namespace App\Http\Handlers;
 
+use App\Constants\AccountTypeConstants;
 use App\Constants\UserRoleConstants;
 use App\Constants\ValidationMessageConstants;
 use App\Jobs\ForgotPasswordMailJob;
@@ -15,6 +16,7 @@ use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -22,9 +24,16 @@ class AuthHandler
 {
     public function createAccount($data)
     {
+        $accountTypes  = [
+            AccountTypeConstants::SHOP,
+            AccountTypeConstants::PERSONAL,
+            AccountTypeConstants::SHOP_AND_PERSONAL,
+        ];
+
         $rules = [
             'name' => 'required',
             'phone' => ['required', 'numeric', new Phone],
+            'accountType' => ['required', 'numeric', Rule::in($accountTypes)],
             'email' => 'required|unique:users,email,null,id,is_admin,' . $data['is_admin'],
             'password' => 'required|confirmed',
             'is_admin' => 'required|boolean',
@@ -34,6 +43,7 @@ class AuthHandler
             'confirmed' => ValidationMessageConstants::Confirmed,
             'unique' => ValidationMessageConstants::Duplicate,
             'numeric' => ValidationMessageConstants::Invalid,
+            'in' => ValidationMessageConstants::Invalid,
         ];
 
         $validator = Validator::make($data, $rules, $messages);
@@ -44,6 +54,7 @@ class AuthHandler
         $user = new User();
         $user->name = $data['name'];
         $user->phone = $data['phone'];
+        $user->admin_account_type = $data['accountType'];
         $user->email = $data['email'];
         $user->password = Hash::make($data['password']);
         $user->is_admin = $data['is_admin'];

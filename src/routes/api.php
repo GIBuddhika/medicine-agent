@@ -29,6 +29,7 @@ Route::prefix('users')->group(function () {
     });
     Route::middleware(['admin'])->group(function () {
         Route::get('/{id}/shop-admins', UsersController::class . '@getShopAdmins');
+        Route::get('/{id}/personal-items', UsersController::class . '@getPersonalItems');
     });
 });
 

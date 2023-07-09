@@ -16,6 +16,7 @@ class AuthController extends Controller
         $data = [
             'name' => $request->name,
             'phone' => $request->phone,
+            'accountType' => $request->accountType,
             'email' => $request->email,
             'password' => $request->password,
             'password_confirmation' => $request->confirm_password,
