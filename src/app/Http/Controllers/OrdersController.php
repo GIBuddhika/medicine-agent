@@ -73,6 +73,21 @@ class OrdersController extends Controller
         }
     }
 
+    public function getCollectedShopOrderItemsForAdmin(Request $request)
+    {
+        try {
+            $orders = $this
+                ->getOrdersHandler()
+                ->getCollectedShopOrderItemsForAdmin($request->toArray());
+
+            return $orders;
+        } catch (ModelNotFoundException $ex) {
+            return response([], 404);
+        } catch (Exception $ex) {
+            return response($ex->getMessage(), 500);
+        }
+    }
+
     private function getOrdersHandler(): OrdersHandler
     {
         return app(OrdersHandler::class);

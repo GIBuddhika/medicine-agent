@@ -15,6 +15,7 @@ use App\Rules\RequiredIfARentableItem;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Stripe\Exception\CardException;
@@ -43,6 +44,9 @@ class OrdersHandler
                     'stripe_invoice_id' => $invoiceId,
                     'status' => OrderStatusConstants::SUCCESS
                 ]);
+
+                //update order_items
+                $this->updateOrderItems($order);
 
                 return $order;
             });
@@ -88,6 +92,17 @@ class OrdersHandler
         foreach ($orderItemsData as $orderItem) {
             $price = $this->getItemsHandler()->getPriceByQuantity($orderItem['item_id'], $orderItem['quantity']);
             $this->getItemOrderHandler()->create($order, $orderItem, $price);
+        }
+    }
+
+    public function updateOrderItems(Order $order): void
+    {
+        $orderItemsData = $order->items;
+        foreach ($orderItemsData as $orderItem) {
+            $data = [
+                'status' => OrderStatusConstants::SUCCESS
+            ];
+            $this->getItemOrderHandler()->update($order->id, $orderItem['id'], $data);
         }
     }
 
@@ -144,7 +159,7 @@ class OrdersHandler
                 join orders on item_order.order_id=orders.id
                 join items on item_order.item_id=items.id
                 join files on files.id=items.image_id
-                where status=" . OrderStatusConstants::SUCCESS . " AND orders.user_id=$userId and items.shop_id is not null 
+                where item_order.status=" . OrderStatusConstants::SUCCESS . " AND orders.user_id=$userId and items.shop_id is not null 
                 order By order_created_at DESC
             "
             )
@@ -178,7 +193,7 @@ class OrdersHandler
                 join items on item_order.item_id=items.id
                 join personal_listings on items.personal_listing_id=personal_listings.id
                 join files on files.id=items.image_id
-                where status=" . OrderStatusConstants::SUCCESS . "  AND orders.user_id=$userId and items.shop_id is null 
+                where item_order.status=" . OrderStatusConstants::SUCCESS . "  AND orders.user_id=$userId and items.shop_id is null 
                 order By order_created_at DESC
             "
             )
@@ -207,7 +222,7 @@ class OrdersHandler
                 join orders on item_order.order_id=orders.id
                 join items on item_order.item_id=items.id
                 join files on files.id=items.image_id
-                where status=" . OrderStatusConstants::COLLECTED . " AND orders.user_id=$userId and items.shop_id is not null 
+                where item_order.status=" . OrderStatusConstants::COLLECTED . " AND orders.user_id=$userId and items.shop_id is not null 
                 order By order_created_at DESC
             "
             )
@@ -242,7 +257,7 @@ class OrdersHandler
                 join items on item_order.item_id=items.id
                 join personal_listings on items.personal_listing_id=personal_listings.id
                 join files on files.id=items.image_id
-                where status=" . OrderStatusConstants::COLLECTED . "  AND orders.user_id=$userId and items.shop_id is null 
+                where item_order.status=" . OrderStatusConstants::COLLECTED . "  AND orders.user_id=$userId and items.shop_id is null 
                 order By order_created_at DESC
             "
             )
@@ -370,7 +385,99 @@ class OrdersHandler
             join items on item_order.item_id=items.id
             join files on files.id=items.image_id
             join users on users.id=orders.user_id
-            where status=" . OrderStatusConstants::SUCCESS . "
+            where item_order.status=" . OrderStatusConstants::SUCCESS . "
+            AND items.user_id = $userId
+            " . (($itemId != null) ? "AND item_order.item_id = $itemId " : "") . "
+            " . (($phone != null) ? "AND users.phone LIKE '%$phone%' " : "") . "
+            " . (($date != null) ? "AND orders.created_at LIKE '$date%' " : "") . "
+            " . (($orderId != null) ? "AND orders.id = $orderId " : "") . "
+            " . (($shopIdsString != "") ? "AND items.shop_id IN ($shopIdsString) " : "AND items.shop_id is not null ") . "
+            order By order_created_at DESC";
+
+        $shopOrderItems = DB::select(
+            DB::raw($rawQuery)
+        );
+
+        $unColletedShopOrderItems = ItemOrder::hydrate($shopOrderItems)
+            ->groupBy('order_user_id');
+
+        return $unColletedShopOrderItems;
+    }
+
+    public function getCollectedShopOrderItemsForAdmin(array $data)
+    {
+        $user = session(SessionConstants::User);
+        $userRole = session(SessionConstants::UserRole);
+
+        $shopIds = [];
+
+        if ($userRole == UserRoleConstants::ADMIN) {
+            $userId = $user->id;
+            if (isset($data['shop_id'])) {
+                $shopIds[] = $data['shop_id'];
+            }
+        } else if ($userRole == UserRoleConstants::SHOP_ADMIN) {
+            $userId = $user->owner_id;
+            $assignedShops = $user->shops;
+            if (isset($data['shop_id'])) {
+                $shopId = $data['shop_id'];
+                $shopIndex = collect($assignedShops)->search(function ($shop) use ($shopId) {
+                    return $shop->id == $shopId;
+                });
+                if ($shopIndex !== false) {
+                    $shopIds[] = $shopId;
+                } else {
+                    throw new ModelNotFoundException();
+                }
+            } else {
+                $shopIds = $assignedShops->pluck('id')->toArray();
+            }
+        }
+
+        $shopIdsString = implode(",", $shopIds);
+
+        $orderId = null;
+        if (isset($data['order_id'])) {
+            $orderId = $data['order_id'];
+        }
+        $itemId = null;
+        if (isset($data['product_id'])) {
+            $itemId = $data['product_id'];
+        }
+        $date = null;
+        if (isset($data['date'])) {
+            $date = $data['date'];
+        }
+        $phone = null;
+        if (isset($data['phone'])) {
+            $phone = $data['phone'];
+        }
+
+        $unColletedShopOrderItems = $this->getCollectedShopOrderItemsAdmin($shopIdsString, $userId, $orderId, $itemId, $date, $phone);
+        $users = User::whereIn('id', $unColletedShopOrderItems->keys())->get();
+        return [
+            'order_items' => $unColletedShopOrderItems,
+            'users' => $users
+        ];
+    }
+
+    private function getCollectedShopOrderItemsAdmin($shopIdsString = "", $userId, $orderId, $itemId, $date, $phone)
+    {
+        $rawQuery = "SELECT 
+            item_order.*,
+            orders.created_at as order_created_at,
+            orders.user_id as order_user_id,
+            items.id as item_id,
+            orders.status as status,
+            items.shop_id,
+            items.image_id,
+            files.location
+            FROM `item_order` 
+            join orders on item_order.order_id=orders.id
+            join items on item_order.item_id=items.id
+            join files on files.id=items.image_id
+            join users on users.id=orders.user_id
+            where item_order.status=" . OrderStatusConstants::COLLECTED . "
             AND items.user_id = $userId
             " . (($itemId != null) ? "AND item_order.item_id = $itemId " : "") . "
             " . (($phone != null) ? "AND users.phone LIKE '%$phone%' " : "") . "

@@ -20,6 +20,7 @@ class CreateItemOrderTable extends Migration
             $table->integer('quantity');
             $table->double('price');
             $table->integer('duration')->nullable();
+            $table->integer('status');
             $table->timestamps();
             $table->softDeletes();
 

@@ -66,7 +66,7 @@ Route::prefix('admin')->group(function () {
     Route::prefix('orders')->group(function () {
         Route::middleware('any_role:' . UserRoleConstants::SHOP_ADMIN . ',' . UserRoleConstants::ADMIN . '')->group(function () {
             Route::get('/shops/un-collected', OrdersController::class . '@getUnCollectedShopOrderItemsForAdmin');
-            Route::get('/collected', OrdersController::class . '@getCollectedOrderItemsAdmin');
+            Route::get('/shops/collected', OrdersController::class . '@getCollectedShopOrderItemsForAdmin');
         });
     });
 });
