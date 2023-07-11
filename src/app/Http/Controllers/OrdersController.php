@@ -58,14 +58,16 @@ class OrdersController extends Controller
         }
     }
 
-    public function getUnCollectedShopOrderItemsForAdmin(Request $request)
+    public function getShopOrderItemsForAdmin(Request $request)
     {
         try {
             $orders = $this
                 ->getOrdersHandler()
-                ->getUnCollectedShopOrderItemsForAdmin($request->toArray());
+                ->getShopOrderItemsForAdmin($request->toArray());
 
             return $orders;
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
         } catch (ModelNotFoundException $ex) {
             return response([], 404);
         } catch (Exception $ex) {
@@ -73,14 +75,16 @@ class OrdersController extends Controller
         }
     }
 
-    public function getCollectedShopOrderItemsForAdmin(Request $request)
+    public function getPersonalOrderItemsForAdmin(Request $request)
     {
         try {
             $orders = $this
                 ->getOrdersHandler()
-                ->getCollectedShopOrderItemsForAdmin($request->toArray());
+                ->getPersonalOrderItemsForAdmin($request->toArray());
 
             return $orders;
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
         } catch (ModelNotFoundException $ex) {
             return response([], 404);
         } catch (Exception $ex) {

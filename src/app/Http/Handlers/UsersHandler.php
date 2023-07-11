@@ -54,6 +54,7 @@ class UsersHandler
 
         $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'personalListing', 'shop.shopAdmins']);
 
+        //check this function again.
         if ($userRole == UserRoleConstants::SHOP_ADMIN) {
             //checking ShopAdmin has access to the shop
             $itemsQ->whereHas('shop', function ($query) use ($user) {

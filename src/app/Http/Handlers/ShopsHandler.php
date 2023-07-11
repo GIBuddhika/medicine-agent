@@ -197,15 +197,24 @@ class ShopsHandler
     {
         $user = session(SessionConstants::User);
         $userRole = session(SessionConstants::UserRole);
-        
-        $items = Item::with('shop')
-            ->whereHas('shop', function ($query) use ($shopId) {
-                $query->where('shop_id', $shopId);
-            })
-            ->where('user_id', $user->id)
+
+        $itemsQ = Item::with('shop');
+
+        if ($userRole == UserRoleConstants::SHOP_ADMIN) {
+            //checking ShopAdmin has access to the shop
+            $itemsQ->whereHas('shop', function ($query) use ($user) {
+                $query->whereHas('shopAdmins', function ($query1) use ($user) {
+                    $query1->where('user_id', $user->id);
+                });
+            });
+        } else {
+            $itemsQ->where('user_id', $user->id);
+        }
+
+        $itemsQ->where('shop_id', $shopId)
             ->get();
 
-        return $items;
+        return $itemsQ->get();
     }
 
     private function hasExistingSlug($slug)
