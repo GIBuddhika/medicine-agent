@@ -16,7 +16,6 @@ use App\Rules\RequiredIfARentableItem;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -116,15 +115,15 @@ class OrdersHandler
     {
         $user = session(SessionConstants::User);
 
-        $unColletedShopOrderItems = $this->getUnCollectedShopOrderItems($user->id);
-        $unCollectedPersonalOrderItems = $this->getUnCollectedPersonalOrderItems($user->id);
+        $unColletedShopOrderItems = $this->getShopOrderItems($user->id, OrderStatusConstants::SUCCESS);
+        $unCollectedPersonalOrderItems = $this->getPersonalOrderItems($user->id, OrderStatusConstants::SUCCESS);
 
         $shops = Shop::whereIn('id', $unColletedShopOrderItems->keys())->get();
         $users = User::whereIn('id', $unCollectedPersonalOrderItems->keys())->get();
 
         return [
-            'unColletedShopOrderItems' => $unColletedShopOrderItems,
-            'unCollectedPersonalOrderItems' => $unCollectedPersonalOrderItems,
+            'shopOrderItems' => $unColletedShopOrderItems,
+            'personalOrderItems' => $unCollectedPersonalOrderItems,
             'shops' => $shops,
             'users' => $users
         ];
@@ -135,22 +134,22 @@ class OrdersHandler
     {
         $user = session(SessionConstants::User);
 
-        $colletedShopOrderItems = $this->getCollectedShopOrderItems($user->id);
-        $collectedPersonalOrderItems = $this->getCollectedPersonalOrderItems($user->id);
+        $colletedShopOrderItems = $this->getShopOrderItems($user->id, OrderStatusConstants::COLLECTED);
+        $collectedPersonalOrderItems = $this->getPersonalOrderItems($user->id, OrderStatusConstants::COLLECTED);
 
         $shops = Shop::whereIn('id', $colletedShopOrderItems->keys())->get();
         $users = User::whereIn('id', $collectedPersonalOrderItems->keys())->get();
 
         return [
-            'colletedShopOrderItems' => $colletedShopOrderItems,
-            'collectedPersonalOrderItems' => $collectedPersonalOrderItems,
+            'shopOrderItems' => $colletedShopOrderItems,
+            'personalOrderItems' => $collectedPersonalOrderItems,
             'shops' => $shops,
             'users' => $users
         ];
     }
 
     //for customer portal
-    private function getUnCollectedShopOrderItems($userId)
+    private function getShopOrderItems($userId, $status)
     {
         $shopOrderItems = DB::select(
             DB::raw(
@@ -158,81 +157,18 @@ class OrdersHandler
                 item_order.*,
                 orders.created_at as order_created_at,
                 orders.user_id as user_id,
-                items.id as item_id,
                 orders.status as status,
+                items.id as item_id,
                 items.shop_id,
+                items.name,
                 items.image_id,
                 files.location
                 FROM `item_order` 
                 join orders on item_order.order_id=orders.id
                 join items on item_order.item_id=items.id
                 join files on files.id=items.image_id
-                where item_order.status=" . OrderStatusConstants::SUCCESS . " AND orders.user_id=$userId and items.shop_id is not null 
-                order By order_created_at DESC
-            "
-            )
-        );
-
-        $unColletedShopOrderItems = ItemOrder::hydrate($shopOrderItems)
-            ->groupBy('shop_id');
-
-        return $unColletedShopOrderItems;
-    }
-
-    //for customer portal
-    private function getUnCollectedPersonalOrderItems($userId)
-    {
-        $personalOrderItems = DB::select(
-            DB::raw(
-                "SELECT 
-                item_order.*,
-                orders.created_at as order_created_at,
-                orders.user_id as user_id,
-                items.id as item_id,
-                orders.status as status,
-                items.shop_id,
-                personal_listings.user_id as personal_listing_user_id,
-                personal_listings.address,
-                personal_listings.latitude,
-                personal_listings.longitude,
-                items.image_id,
-                files.location
-                FROM `item_order` 
-                join orders on item_order.order_id=orders.id
-                join items on item_order.item_id=items.id
-                join personal_listings on items.personal_listing_id=personal_listings.id
-                join files on files.id=items.image_id
-                where item_order.status=" . OrderStatusConstants::SUCCESS . "  AND orders.user_id=$userId and items.shop_id is null 
-                order By order_created_at DESC
-            "
-            )
-        );
-
-        $uncollectedPersonalProducts = ItemOrder::hydrate($personalOrderItems)
-            ->groupBy('personal_listing_user_id');
-
-        return $uncollectedPersonalProducts;
-    }
-
-    //for customer portal
-    private function getCollectedShopOrderItems($userId)
-    {
-        $shopOrderItems = DB::select(
-            DB::raw(
-                "SELECT 
-                item_order.*,
-                orders.created_at as order_created_at,
-                orders.user_id as user_id,
-                items.id as item_id,
-                orders.status as status,
-                items.shop_id,
-                items.image_id,
-                files.location
-                FROM `item_order` 
-                join orders on item_order.order_id=orders.id
-                join items on item_order.item_id=items.id
-                join files on files.id=items.image_id
-                where item_order.status=" . OrderStatusConstants::COLLECTED . " AND orders.user_id=$userId and items.shop_id is not null 
+                where orders.user_id=$userId AND items.shop_id is not null
+                AND item_order.status = " . $status . "
                 order By order_created_at DESC
             "
             )
@@ -245,7 +181,7 @@ class OrdersHandler
     }
 
     //for customer portal
-    private function getCollectedPersonalOrderItems($userId)
+    private function getPersonalOrderItems($userId, $status)
     {
         $personalOrderItems = DB::select(
             DB::raw(
@@ -253,21 +189,22 @@ class OrdersHandler
                 item_order.*,
                 orders.created_at as order_created_at,
                 orders.user_id as user_id,
-                items.id as item_id,
                 orders.status as status,
+                items.id as item_id,
                 items.shop_id,
+                items.name,
+                items.image_id,
                 personal_listings.user_id as personal_listing_user_id,
                 personal_listings.address,
                 personal_listings.latitude,
                 personal_listings.longitude,
-                items.image_id,
                 files.location
                 FROM `item_order` 
                 join orders on item_order.order_id=orders.id
                 join items on item_order.item_id=items.id
                 join personal_listings on items.personal_listing_id=personal_listings.id
                 join files on files.id=items.image_id
-                where item_order.status=" . OrderStatusConstants::COLLECTED . "  AND orders.user_id=$userId and items.shop_id is null 
+                where item_order.status=" . $status . "  AND orders.user_id=$userId and items.shop_id is null 
                 order By order_created_at DESC
             "
             )
@@ -407,10 +344,11 @@ class OrdersHandler
             item_order.*,
             orders.created_at as order_created_at,
             orders.user_id as order_user_id,
-            items.id as item_id,
             orders.status as status,
+            items.id as item_id,
             items.shop_id,
             items.image_id,
+            items.name,
             files.location
             FROM `item_order` 
             join orders on item_order.order_id=orders.id
@@ -494,10 +432,11 @@ class OrdersHandler
             item_order.*,
             orders.created_at as order_created_at,
             orders.user_id as order_user_id,
-            items.id as item_id,
             orders.status as status,
+            items.id as item_id,
             items.personal_listing_id,
             items.image_id,
+            items.name,
             files.location
             FROM `item_order` 
             join orders on item_order.order_id=orders.id
