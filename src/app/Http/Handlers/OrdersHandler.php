@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\Shop;
 use App\Models\User;
 use App\PaymentService\PaymentService;
+use App\Rules\IsQuantityAvailable;
 use App\Rules\RequiredIfARentableItem;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -48,6 +49,9 @@ class OrdersHandler
 
                 //update order_items
                 $this->updateOrderItems($order);
+
+                // update inventory                
+                $this->getItemsHandler()->updateItemsCountAfterSuccessfulCheckout($order);
 
                 return $order;
             });
@@ -91,7 +95,7 @@ class OrdersHandler
     public function createOrderItems(Order $order,  array $orderItemsData): void
     {
         foreach ($orderItemsData as $orderItem) {
-            $price = $this->getItemsHandler()->getPriceByQuantity($orderItem['item_id'], $orderItem['quantity']);
+            $price = $this->getItemsHandler()->getPriceBasedOnQuantity($orderItem['item_id'], $orderItem['quantity']);
             $this->getItemOrderHandler()->create($order, $orderItem, $price);
         }
     }
@@ -280,7 +284,7 @@ class OrdersHandler
         $rules = [
             'stripe_token' => 'required',
             'data.*.item_id' => 'required|exists:items,id',
-            'data.*.quantity' => 'required|integer',
+            'data.*.quantity' => ['required', 'integer', new IsQuantityAvailable()],
             'data.*.duration' => [new RequiredIfARentableItem(), 'present'],
         ];
 

@@ -9,6 +9,7 @@ use App\Constants\ValidationMessageConstants;
 use App\Models\City;
 use App\Models\File;
 use App\Models\Item;
+use App\Models\Order;
 use App\Models\Shop;
 use Carbon\Carbon;
 use Exception;
@@ -362,7 +363,7 @@ class ItemsHandler
         }
     }
 
-    public function getPriceByQuantity(int $itemId, int $itemQuantity): int
+    public function getPriceBasedOnQuantity(int $itemId, int $itemQuantity): int
     {
         $item = Item::where('id', $itemId)->with('sellableItem', 'rentableItem')->first();
 
@@ -373,6 +374,16 @@ class ItemsHandler
             return (int)$item->sellableItem->retail_price;
         } else {
             return (int) $item->rentableItem->price_per_month;
+        }
+    }
+
+    public function updateItemsCountAfterSuccessfulCheckout(Order $order)
+    {
+        $orderItems = $order->items;
+
+        foreach ($orderItems as $orderItem) {
+            $orderItem->quantity -= $orderItem->pivot->quantity;
+            $orderItem->save();
         }
     }
 
