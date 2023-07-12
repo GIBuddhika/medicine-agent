@@ -22,6 +22,10 @@ class ItemOrderHandler
         $itemOrder->duration = $orderItem['duration'];
         $itemOrder->status = OrderStatusConstants::PENDING;
 
+        if (isset($orderItem['note'])) {
+            $itemOrder->note = $orderItem['note'];
+        }
+
         $itemOrder->save();
         return $itemOrder;
     }
