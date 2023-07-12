@@ -106,7 +106,7 @@ class OrdersHandler
             $data = [
                 'status' => OrderStatusConstants::SUCCESS
             ];
-            $this->getItemOrderHandler()->update($order->id, $orderItem['id'], $data);
+            $this->getItemOrderHandler()->handleUpdate($order->id, $orderItem['id'], $data);
         }
     }
 

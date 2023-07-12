@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Handlers\ItemOrderHandler;
 use App\Http\Handlers\OrdersHandler;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -92,8 +93,30 @@ class OrdersController extends Controller
         }
     }
 
+    public function markItemOrderAsCollected(Request $request, $itemOrderId)
+    {
+        try {
+            $orders = $this
+                ->getItemOrderHandler()
+                ->markAsCollected($itemOrderId, $request->toArray());
+
+            return $orders;
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
+        } catch (ModelNotFoundException $ex) {
+            return response([], 404);
+        } catch (Exception $ex) {
+            return response($ex->getMessage(), 500);
+        }
+    }
+
     private function getOrdersHandler(): OrdersHandler
     {
         return app(OrdersHandler::class);
+    }
+
+    private function getItemOrderHandler(): ItemOrderHandler
+    {
+        return app(ItemOrderHandler::class);
     }
 }

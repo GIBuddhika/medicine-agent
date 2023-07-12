@@ -70,6 +70,7 @@ Route::prefix('admin')->group(function () {
         Route::middleware('any_role:' . UserRoleConstants::SHOP_ADMIN . ',' . UserRoleConstants::ADMIN . '')->group(function () {
             Route::get('/shops', OrdersController::class . '@getShopOrderItemsForAdmin');
             Route::get('/personal', OrdersController::class . '@getPersonalOrderItemsForAdmin');
+            Route::patch('/item-order/{itemOrderId}', OrdersController::class . '@markItemOrderAsCollected');
         });
     });
 });
