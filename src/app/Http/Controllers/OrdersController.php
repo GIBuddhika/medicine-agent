@@ -33,6 +33,25 @@ class OrdersController extends Controller
         }
     }
 
+    public function extend(Request $request)
+    {
+        try {
+            $order = $this
+                ->getOrdersHandler()
+                ->extend($request->toArray());
+
+            return $order;
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
+        } catch (CardException $ex) {
+            return response($ex->getMessage(), 422);
+        } catch (InvalidRequestException $ex) {
+            return response($ex->getMessage(), 422);
+        } catch (Exception $ex) {
+            return response($ex->getMessage(), 500);
+        }
+    }
+
     public function getUnCollectedOrderItems(Request $request)
     {
         try {
@@ -99,6 +118,23 @@ class OrdersController extends Controller
             $orders = $this
                 ->getItemOrderHandler()
                 ->markAsCollected($itemOrderId, $request->toArray());
+
+            return $orders;
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
+        } catch (ModelNotFoundException $ex) {
+            return response([], 404);
+        } catch (Exception $ex) {
+            return response($ex->getMessage(), 500);
+        }
+    }
+
+    public function markItemOrderAsReceived(Request $request, $itemOrderId)
+    {
+        try {
+            $orders = $this
+                ->getItemOrderHandler()
+                ->markAsReceived($itemOrderId, $request->toArray());
 
             return $orders;
         } catch (ValidationException $ex) {

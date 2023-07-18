@@ -17,7 +17,6 @@ class CreateOrdersTable extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('user_id');
             $table->string('stripe_invoice_id')->nullable();
-            $table->string('note')->nullable();
             $table->string('status');
             $table->timestamps();
             $table->softDeletes();

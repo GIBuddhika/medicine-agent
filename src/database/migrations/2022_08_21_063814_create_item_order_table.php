@@ -24,7 +24,7 @@ class CreateItemOrderTable extends Migration
             $table->text('note')->nullable();
             $table->text('admin_note')->nullable();
             $table->timestamp('collected_at')->nullable();
-            //received at
+            $table->timestamp('received_at')->nullable();
             //cancelled at
             $table->timestamps();
             $table->softDeletes();

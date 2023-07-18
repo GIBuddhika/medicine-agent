@@ -408,11 +408,6 @@ class ItemsHandler
         return true;
     }
 
-    private function getUserMetaHandler(): UserMetaHandler
-    {
-        return app(UserMetaHandler::class);
-    }
-
     private function getPersonalListingHandler(): PersonalListingHandler
     {
         return app(PersonalListingHandler::class);

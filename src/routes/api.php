@@ -60,6 +60,7 @@ Route::prefix('items')->group(function () {
 Route::prefix('orders')->group(function () {
     Route::middleware(['customer'])->group(function () {
         Route::post('/', OrdersController::class . '@create');
+        Route::post('/extend', OrdersController::class . '@extend');
         Route::get('/un-collected', OrdersController::class . '@getUnCollectedOrderItems');
         Route::get('/collected', OrdersController::class . '@getCollectedOrderItems');
     });
@@ -70,7 +71,8 @@ Route::prefix('admin')->group(function () {
         Route::middleware('any_role:' . UserRoleConstants::SHOP_ADMIN . ',' . UserRoleConstants::ADMIN . '')->group(function () {
             Route::get('/shops', OrdersController::class . '@getShopOrderItemsForAdmin');
             Route::get('/personal', OrdersController::class . '@getPersonalOrderItemsForAdmin');
-            Route::patch('/item-order/{itemOrderId}', OrdersController::class . '@markItemOrderAsCollected');
+            Route::patch('/item-order/{itemOrderId}/collected', OrdersController::class . '@markItemOrderAsCollected');
+            Route::patch('/item-order/{itemOrderId}/received', OrdersController::class . '@markItemOrderAsReceived');
         });
     });
 });

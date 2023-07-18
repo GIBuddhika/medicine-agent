@@ -6,6 +6,7 @@ use App\Constants\OrderStatusConstants;
 use App\Constants\SessionConstants;
 use App\Constants\UserRoleConstants;
 use App\Constants\ValidationMessageConstants;
+use App\Models\Item;
 use App\Models\ItemOrder;
 use App\Models\Order;
 use App\Models\Shop;
@@ -13,6 +14,7 @@ use App\Models\User;
 use App\PaymentService\PaymentService;
 use App\Rules\IsQuantityAvailable;
 use App\Rules\RequiredIfARentableItem;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -45,6 +47,9 @@ class OrdersHandler
                     'stripe_invoice_id' => $invoiceId,
                     'status' => OrderStatusConstants::SUCCESS
                 ]);
+
+                //create payments records
+                $this->createPaymentRecords($order, $user, $invoiceId);
 
                 //update order_items
                 $this->updateOrderItems($order);
@@ -110,6 +115,86 @@ class OrdersHandler
         }
     }
 
+    public function createPaymentRecords(Order $order, User $user, $invoiceId)
+    {
+        $orderItemsData = $order->items;
+        foreach ($orderItemsData as $orderItem) {
+            $this->createPaymentRecord($order, $orderItem, $user, $invoiceId, "cart-checkout");
+        }
+    }
+
+    public function createPaymentRecord(Order $order, Item $orderItem, User $user, $invoiceId, $checkoutPoint, $duration = null)
+    {
+        $paid_amount = (int)$orderItem->pivot->quantity * (int)$orderItem->pivot->price;
+        if ($orderItem->pivot->duration) {
+            $paid_amount *= $orderItem->pivot->duration;
+        }
+
+        if ($checkoutPoint == "cart-checkout") {
+            $log = $user->name . ' paid ' . $paid_amount . 'LKR on ' . Carbon::now()->format('Y M d h.ia') . ' at checkout.'; //or shop
+        } else if ($checkoutPoint == "extend") {
+            $log = $user->name . ' paid ' . $paid_amount
+                . 'LKR on ' . Carbon::now()->format('Y M d h.ia')
+                . ' to extend ' . $orderItem->name
+                . ' by ' . $duration . ' months.'; //or shop
+        }
+
+        $paymentData = [
+            'user_id' => $order->user_id,
+            'order_id' => $order->id,
+            'item_order_id' => $orderItem->pivot->id,
+            'payment_type' => 'online', //after create pay on shop feature, change this.
+            'payment_amount' => $paid_amount,
+            'duration' => $duration ?? ($orderItem->pivot->duration ?? null),
+            'online_payment_id' => $invoiceId,
+            'log' => $log
+        ];
+
+        $this->getPaymentsHandler()->create($paymentData);
+    }
+
+    public function extend($orderData)
+    {
+        $user = session(SessionConstants::User);
+        try {
+            $order = Order::where('id', $orderData['order_id'])
+                ->where('user_id', $user->id)
+                ->firstOrFail();
+
+            $orderItem = $order->items()
+                ->where('item_id', $orderData['item_id'])
+                ->firstOrFail();
+
+            $this->validateOrderExtendData($orderData);
+
+            $order = DB::transaction(function () use ($orderData, $user, $order, $orderItem) {
+                //pay order
+                $invoiceId = $this->getPaymentService()->processPayment($order->id, $user, $orderData['stripe_token']);
+
+                //create payments records
+                $this->createPaymentRecord($order, $orderItem,  $user, $invoiceId, "extend", $orderData['duration']);
+
+                //update order_item duration
+                $this->getItemOrderHandler()->handleUpdate($order->id, $orderItem['id'], [
+                    'duration' => $orderData['duration'] + $orderItem->pivot->duration
+                ]);
+
+                return $order;
+            });
+
+            return $order;
+        } catch (ValidationException $ex) {
+            throw new ValidationException($ex);
+        } catch (CardException $ex) {
+            throw new CardException($ex);
+        } catch (InvalidRequestException $ex) {
+            throw new InvalidRequestException($ex);
+        } catch (Exception $ex) {
+            throw new Exception($ex);
+        }
+    }
+
+
     //for customer portal
     public function getUnCollectedOrderItems()
     {
@@ -157,7 +242,6 @@ class OrdersHandler
                 item_order.*,
                 orders.created_at as order_created_at,
                 orders.user_id as user_id,
-                orders.status as status,
                 items.id as item_id,
                 items.shop_id,
                 items.name,
@@ -189,7 +273,6 @@ class OrdersHandler
                 item_order.*,
                 orders.created_at as order_created_at,
                 orders.user_id as user_id,
-                orders.status as status,
                 items.id as item_id,
                 items.shop_id,
                 items.name,
@@ -229,11 +312,31 @@ class OrdersHandler
             'required' => ValidationMessageConstants::Required,
             'integer' => ValidationMessageConstants::IntegerValue,
             'exists' => ValidationMessageConstants::NotFound,
-            'numeric' => ValidationMessageConstants::Invalid,
-            'base64' => ValidationMessageConstants::Invalid,
             'required_with' => ValidationMessageConstants::Required,
             'required_without' => ValidationMessageConstants::Required,
             'required_if' => ValidationMessageConstants::Required,
+        ];
+
+        $validator = Validator::make($orderData, $rules, $messages);
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator, 400);
+        }
+    }
+
+    private function validateOrderExtendData(array $orderData)
+    {
+        $rules = [
+            'stripe_token' => 'required',
+            'order_id' => 'required|exists:orders,id',
+            'item_id' => 'required|exists:items,id',
+            'duration' => ['present', 'integer'],
+        ];
+
+        $messages = [
+            'required' => ValidationMessageConstants::Required,
+            'exists' => ValidationMessageConstants::NotFound,
+            'integer' => ValidationMessageConstants::IntegerValue,
         ];
 
         $validator = Validator::make($orderData, $rules, $messages);
@@ -473,5 +576,10 @@ class OrdersHandler
     private function getItemOrderHandler(): ItemOrderHandler
     {
         return app(ItemOrderHandler::class);
+    }
+
+    private function getPaymentsHandler(): PaymentsHandler
+    {
+        return app(PaymentsHandler::class);
     }
 }
