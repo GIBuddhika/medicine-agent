@@ -4,10 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class ItemOrder extends Model
+class Refund extends Model
 {
-    protected $table = "item_order";
-
     public function order()
     {
         return $this->belongsTo(Order::class);
@@ -18,8 +16,13 @@ class ItemOrder extends Model
         return $this->belongsTo(Item::class);
     }
 
-    public function payments()
+    public function user()
     {
-        return $this->hasMany(Payment::class);
+        return $this->belongsTo(User::class);
+    }
+
+    public function payment()
+    {
+        return $this->belongsTo(Payment::class);
     }
 }

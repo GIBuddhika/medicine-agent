@@ -13,7 +13,7 @@ class CreateItemOrderTable extends Migration
      */
     public function up()
     {
-        Schema::create('item_order1', function (Blueprint $table) {
+        Schema::create('item_order', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('item_id');
             $table->unsignedBigInteger('order_id');
@@ -25,6 +25,7 @@ class CreateItemOrderTable extends Migration
             $table->text('admin_note')->nullable();
             $table->timestamp('collected_at')->nullable();
             $table->timestamp('received_at')->nullable();
+            $table->timestamp('cancelled_at')->nullable();
             //cancelled at
             $table->timestamps();
             $table->softDeletes();

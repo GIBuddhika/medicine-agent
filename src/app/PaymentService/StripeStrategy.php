@@ -32,6 +32,31 @@ class StripeStrategy implements PaymentStrategyInterface
         }
     }
 
+    public function getPaymentIntent($paymentIntentId)
+    {
+        try {
+            $paymentIntent =  $this->stripeClient->paymentIntents->retrieve(
+                $paymentIntentId,
+                []
+            );
+            return $paymentIntent;
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+    }
+
+    public function refundTotalCharge($chargeId)
+    {
+        try {
+            $refund =  $this->stripeClient->refunds->create([
+                'charge' => $chargeId
+            ]);
+            return $refund;
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+    }
+
     private function createCustomer(array $user)
     {
         try {

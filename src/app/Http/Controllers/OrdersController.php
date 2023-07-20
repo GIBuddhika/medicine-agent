@@ -52,6 +52,27 @@ class OrdersController extends Controller
         }
     }
 
+    public function cancelOrderItem(Request $request, $orderId)
+    {
+        try {
+            $order = $this
+                ->getOrdersHandler()
+                ->cancelOrderItem($orderId, $request->toArray());
+
+            return $order;
+        } catch (ModelNotFoundException $ex) {
+            return response([], 404);
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
+        } catch (CardException $ex) {
+            return response($ex->getMessage(), 422);
+        } catch (InvalidRequestException $ex) {
+            return response($ex->getMessage(), 422);
+        } catch (Exception $ex) {
+            return response($ex->getMessage(), 500);
+        }
+    }
+
     public function getUnCollectedOrderItems(Request $request)
     {
         try {
@@ -71,6 +92,19 @@ class OrdersController extends Controller
             $orders = $this
                 ->getOrdersHandler()
                 ->getCollectedOrderItems($request->toArray());
+
+            return $orders;
+        } catch (Exception $ex) {
+            return response($ex->getMessage(), 500);
+        }
+    }
+
+    public function getCancelledOrderItems(Request $request)
+    {
+        try {
+            $orders = $this
+                ->getOrdersHandler()
+                ->getCancelledOrderItems($request->toArray());
 
             return $orders;
         } catch (Exception $ex) {

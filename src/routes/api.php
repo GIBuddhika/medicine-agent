@@ -63,6 +63,8 @@ Route::prefix('orders')->group(function () {
         Route::post('/extend', OrdersController::class . '@extend');
         Route::get('/un-collected', OrdersController::class . '@getUnCollectedOrderItems');
         Route::get('/collected', OrdersController::class . '@getCollectedOrderItems');
+        Route::get('/cancelled', OrdersController::class . '@getCancelledOrderItems');
+        Route::post('/{orderId}/cancel', OrdersController::class . '@cancelOrderItem');
     });
 });
 

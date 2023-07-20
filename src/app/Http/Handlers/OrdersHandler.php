@@ -194,6 +194,89 @@ class OrdersHandler
         }
     }
 
+    public function cancelOrderItem($orderId, $orderData)
+    {
+        $user = session(SessionConstants::User);
+
+        //if userrole == customer, user $user session obj
+        //else if it's admin or shop admin, take user_id from order and check order's item is belongs to that admin or shopadmin.
+
+        try {
+            $orderItem = ItemOrder::with(['payments', 'order.user'])
+                ->where('id', $orderData['order_item_id'])
+                ->where('order_id', $orderId)
+                ->whereHas('order', function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                })
+                ->firstOrFail();
+
+            $orderItem = DB::transaction(function () use ($orderData, $orderItem) {
+
+                //since orderitem is not-collected, it should only have one payment.
+                $payment = $orderItem->payments[0];
+
+                if ($payment['payment_type'] == "online") {
+                    //refund stripe
+                    $refund = $this->getPaymentService()->refundTotalPayment($payment);
+
+                    //create refund record along with payment_id, so we know from which payment we made the refund
+                    $this->createRefund($orderItem, $payment, $orderData, $refund);
+                }
+
+                //update the statuses
+                $orderItem->status = OrderStatusConstants::CANCELLED;
+                $orderItem->cancelled_at = Carbon::now();
+                $orderItem->save();
+
+                //increase items quantity
+                $item = $orderItem->item;
+                $item->quantity += $orderItem->quantity;
+                $item->save();
+
+                return $orderItem;
+            });
+
+            return $orderItem;
+        } catch (ModelNotFoundException $ex) {
+            throw new ModelNotFoundException();
+        } catch (ValidationException $ex) {
+            throw new ValidationException($ex);
+        } catch (CardException $ex) {
+            throw new CardException($ex);
+        } catch (InvalidRequestException $ex) {
+            throw new InvalidRequestException($ex);
+        } catch (Exception $ex) {
+            throw new Exception($ex);
+        }
+    }
+
+    private function createRefund($orderItem, $payment, $orderData, $refund)
+    {
+        $refundData = [
+            'order_id' => $orderItem->order_id,
+            'item_order_id' => $orderItem->id,
+            'user_id' => $orderItem->order->user_id,
+            'payment_id' => $payment->id,
+            'refund_type' => "online",
+            'refund_amount' => $payment->payment_amount,
+            'online_refund_id' => $refund['id'],
+            'reason' => null
+        ];
+
+        if (isset($orderData['reason'])) {
+            $refundData['reason'] = $orderData['reason'];
+        }
+
+        $customer = $orderItem->order->user;
+
+        $log = $customer->name . ' has cancelled order at ' . Carbon::now()->format('Y M d h.ia') . '.'
+            . ' Refunded amount: ' . $payment->payment_amount . 'LKR.';
+
+        $refundData['log'] = $log;
+
+        $this->getRefundsHandler()->create($refundData);
+    }
+
 
     //for customer portal
     public function getUnCollectedOrderItems()
@@ -234,6 +317,25 @@ class OrdersHandler
     }
 
     //for customer portal
+    public function getCancelledOrderItems()
+    {
+        $user = session(SessionConstants::User);
+
+        $colletedShopOrderItems = $this->getShopOrderItems($user->id, OrderStatusConstants::CANCELLED);
+        $collectedPersonalOrderItems = $this->getPersonalOrderItems($user->id, OrderStatusConstants::CANCELLED);
+
+        $shops = Shop::whereIn('id', $colletedShopOrderItems->keys())->get();
+        $users = User::whereIn('id', $collectedPersonalOrderItems->keys())->get();
+
+        return [
+            'shopOrderItems' => $colletedShopOrderItems,
+            'personalOrderItems' => $collectedPersonalOrderItems,
+            'shops' => $shops,
+            'users' => $users
+        ];
+    }
+
+    //for customer portal
     private function getShopOrderItems($userId, $status)
     {
         $shopOrderItems = DB::select(
@@ -246,11 +348,13 @@ class OrdersHandler
                 items.shop_id,
                 items.name,
                 items.image_id,
-                files.location
+                files.location,
+                payments.payment_type
                 FROM `item_order` 
                 join orders on item_order.order_id=orders.id
                 join items on item_order.item_id=items.id
                 join files on files.id=items.image_id
+                join payments on payments.item_order_id=item_order.id
                 where orders.user_id=$userId AND items.shop_id is not null
                 AND item_order.status = " . $status . "
                 order By order_created_at DESC
@@ -281,12 +385,14 @@ class OrdersHandler
                 personal_listings.address,
                 personal_listings.latitude,
                 personal_listings.longitude,
-                files.location
+                files.location,
+                payments.payment_type
                 FROM `item_order` 
                 join orders on item_order.order_id=orders.id
                 join items on item_order.item_id=items.id
                 join personal_listings on items.personal_listing_id=personal_listings.id
                 join files on files.id=items.image_id
+                join payments on payments.item_order_id=item_order.id
                 where item_order.status=" . $status . "  AND orders.user_id=$userId and items.shop_id is null 
                 order By order_created_at DESC
             "
@@ -581,5 +687,10 @@ class OrdersHandler
     private function getPaymentsHandler(): PaymentsHandler
     {
         return app(PaymentsHandler::class);
+    }
+
+    private function getRefundsHandler(): RefundsHandler
+    {
+        return app(RefundsHandler::class);
     }
 }

@@ -34,4 +34,14 @@ class PaymentService
 
         return $this->strategy->pay($orderMeta, $totalInCents, $stripeToken);
     }
+
+    public function refundTotalPayment($payment)
+    {
+        $paymentIntent =  $this->strategy->getPaymentIntent($payment['online_payment_id']);
+        $chargeId = $paymentIntent['charges']['data'][0]['id'];
+
+        $refund =  $this->strategy->refundTotalCharge($chargeId);
+
+        return $refund;
+    }
 }
