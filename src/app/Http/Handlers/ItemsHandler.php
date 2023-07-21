@@ -36,6 +36,8 @@ class ItemsHandler
             });
         }
 
+        $itemsQ->where('quantity', '>', 0);
+
         if (isset($data['cityId'])) {
             $cityId = $data['cityId'];
             $itemsQ->where('city_id', $cityId);
