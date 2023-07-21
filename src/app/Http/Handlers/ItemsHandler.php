@@ -52,7 +52,10 @@ class ItemsHandler
                 ->take($data['per_page']);
         }
 
-        $items = $itemsQ->get();
+        $items = $itemsQ
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return [
             'data' => $items,
             'total' => $totalCount,
