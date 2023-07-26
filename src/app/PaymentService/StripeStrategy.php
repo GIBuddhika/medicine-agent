@@ -45,11 +45,12 @@ class StripeStrategy implements PaymentStrategyInterface
         }
     }
 
-    public function refundTotalCharge($chargeId)
+    public function refund($chargeId, $amount)
     {
         try {
             $refund =  $this->stripeClient->refunds->create([
-                'charge' => $chargeId
+                'charge' => $chargeId,
+                'amount' => $amount
             ]);
             return $refund;
         } catch (\Throwable $th) {

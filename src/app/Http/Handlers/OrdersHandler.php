@@ -49,6 +49,8 @@ class OrdersHandler
                 ]);
 
                 //create payments records
+                //this will create payment record for each order item with the respective paid amount for each order item 
+                //and same invoice id will be set if there're multiple items in the cart.
                 $this->createPaymentRecords($order, $user, $invoiceId);
 
                 //update order_items
@@ -217,7 +219,7 @@ class OrdersHandler
 
                 if ($payment['payment_type'] == "online") {
                     //refund stripe
-                    $refund = $this->getPaymentService()->refundTotalPayment($payment);
+                    $refund = $this->getPaymentService()->refund($payment, $payment->payment_amount);
 
                     //create refund record along with payment_id, so we know from which payment we made the refund
                     $this->createRefund($orderItem, $payment, $orderData, $refund);
