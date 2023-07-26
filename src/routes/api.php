@@ -75,6 +75,7 @@ Route::prefix('admin')->group(function () {
             Route::get('/personal', OrdersController::class . '@getPersonalOrderItemsForAdmin');
             Route::patch('/item-order/{itemOrderId}/collected', OrdersController::class . '@markItemOrderAsCollected');
             Route::patch('/item-order/{itemOrderId}/received', OrdersController::class . '@markItemOrderAsReceived');
+            Route::patch('/item-order/{itemOrderId}/cancel', OrdersController::class . '@markItemOrderAsCancelled');
         });
     });
 });

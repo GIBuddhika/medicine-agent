@@ -559,12 +559,14 @@ class OrdersHandler
             items.shop_id,
             items.image_id,
             items.name,
-            files.location
+            files.location,
+            payments.payment_type
             FROM `item_order` 
             join orders on item_order.order_id=orders.id
             join items on item_order.item_id=items.id
             join files on files.id=items.image_id
             join users on users.id=orders.user_id
+            join payments on payments.item_order_id=item_order.id
             where items.user_id = $userId
             AND item_order.status = " . (($status == OrderStatusConstants::SUCCESS) ? OrderStatusConstants::SUCCESS : OrderStatusConstants::COLLECTED) . "
             " . (($itemId != null) ? "AND item_order.item_id = $itemId " : "") . "
@@ -646,12 +648,14 @@ class OrdersHandler
             items.personal_listing_id,
             items.image_id,
             items.name,
-            files.location
+            files.location,
+            payments.payment_type
             FROM `item_order` 
             join orders on item_order.order_id=orders.id
             join items on item_order.item_id=items.id
             join files on files.id=items.image_id
             join users on users.id=orders.user_id
+            join payments on payments.item_order_id=item_order.id
             where items.user_id = $userId
             AND item_order.status = " . (($status == OrderStatusConstants::SUCCESS) ? OrderStatusConstants::SUCCESS : OrderStatusConstants::COLLECTED) . "
             " . (($itemId != null) ? "AND item_order.item_id = $itemId " : "") . "

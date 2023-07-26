@@ -7,9 +7,14 @@ use App\Constants\SessionConstants;
 use App\Constants\UserRoleConstants;
 use App\Models\ItemOrder;
 use App\Models\Order;
+use App\PaymentService\PaymentService;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Stripe\Exception\CardException;
+use Stripe\Exception\InvalidRequestException;
 
 class ItemOrderHandler
 {
@@ -181,8 +186,111 @@ class ItemOrderHandler
         }
     }
 
+    public function markAsCancelled($itemOrderId, $orderData)
+    {
+        try {
+            $user = session(SessionConstants::User);
+            $userRole = session(SessionConstants::UserRole);
+
+            $itemOrderQ = ItemOrder::with('item.shop.shopAdmins', 'order')
+                ->where('id', $itemOrderId);
+
+            if ($userRole == UserRoleConstants::SHOP_ADMIN) {
+                //checking ShopAdmin has access to the shop
+                $itemOrderQ->whereHas('item', function ($query1) use ($user) {
+                    $query1->whereHas('shop', function ($query2) use ($user) {
+                        $query2->whereHas('shopAdmins', function ($query3) use ($user) {
+                            $query3->where('user_id', $user->id);
+                        });
+                    });
+                });
+            } else {
+                $itemOrderQ->whereHas('item', function ($query1) use ($user) {
+                    $query1->where('user_id', $user->id);
+                });
+            }
+
+            $orderItem = $itemOrderQ->firstOrFail();
+
+            $orderItem = DB::transaction(function () use ($orderItem, $orderData) {
+
+                //since orderitem is not-collected, it should only have one payment.
+                $payment = $orderItem->payments[0];
+
+                if ($payment['payment_type'] == "online") {
+                    //refund stripe
+                    $refund = $this->getPaymentService()->refund($payment, $payment->payment_amount);
+
+                    //create refund record along with payment_id, so we know from which payment we made the refund
+                    $this->createRefund($orderItem, $payment, $orderData, $refund);
+                }
+
+                //update the statuses
+                $orderItem->status = OrderStatusConstants::CANCELLED;
+                $orderItem->cancelled_at = Carbon::now();
+                $orderItem->save();
+
+                //increase items quantity
+                $item = $orderItem->item;
+                $item->quantity += $orderItem->quantity;
+                $item->save();
+
+                return $orderItem;
+            });
+
+            return $orderItem;
+        } catch (ModelNotFoundException $ex) {
+            throw new ModelNotFoundException();
+        } catch (ValidationException $ex) {
+            throw new ValidationException($ex);
+        } catch (CardException $ex) {
+            throw new CardException($ex);
+        } catch (InvalidRequestException $ex) {
+            throw new InvalidRequestException($ex);
+        } catch (Exception $ex) {
+            throw new Exception($ex);
+        }
+    }
+
+    private function createRefund($orderItem, $payment, $orderData, $refund)
+    {
+        $refundData = [
+            'order_id' => $orderItem->order_id,
+            'item_order_id' => $orderItem->id,
+            'user_id' => $orderItem->order->user_id,
+            'payment_id' => $payment->id,
+            'refund_type' => "online",
+            'refund_amount' => $payment->payment_amount,
+            'online_refund_id' => $refund['id'],
+            'reason' => null
+        ];
+
+        if (isset($orderData['reason'])) {
+            $refundData['reason'] = $orderData['reason'];
+        }
+
+        $customer = $orderItem->order->user;
+
+        $log = $customer->name . ' has cancelled order at ' . Carbon::now()->format('Y M d h.ia') . '.'
+            . ' Refunded amount: ' . $payment->payment_amount . 'LKR.';
+
+        $refundData['log'] = $log;
+
+        $this->getRefundsHandler()->create($refundData);
+    }
+
     private function getPaymentsHandler(): PaymentsHandler
     {
         return app(PaymentsHandler::class);
+    }
+
+    private function getRefundsHandler(): RefundsHandler
+    {
+        return app(RefundsHandler::class);
+    }
+
+    private function getPaymentService(): PaymentService
+    {
+        return app(PaymentService::class);
     }
 }
