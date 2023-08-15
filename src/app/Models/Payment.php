@@ -23,4 +23,9 @@ class Payment extends Model
     {
         return $this->hasOne(ItemOrder::class);
     }
+
+    public function refunds()
+    {
+        return $this->hasMany(Refund::class);
+    }
 }

@@ -18,10 +18,8 @@ class PaymentService
         $this->ordersHandler = $ordersHandler;
     }
 
-    public function processPayment($orderId, User $user, string $stripeToken)
+    public function processPayment($orderId, User $user, string $stripeToken, $totalPrice)
     {
-        $totalPrice = $this->ordersHandler->getTotal($orderId);
-
         $totalInCents = $totalPrice * 100;
 
         $orderMeta = [

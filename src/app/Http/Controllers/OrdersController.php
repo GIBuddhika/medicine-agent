@@ -197,6 +197,40 @@ class OrdersController extends Controller
         }
     }
 
+    public function getOrderItemPaymentData(Request $request, $itemOrderId)
+    {
+        try {
+            $orderPaymentData = $this
+                ->getItemOrderHandler()
+                ->getOrderItemPaymentData($itemOrderId, $request->toArray());
+
+            return $orderPaymentData;
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
+        } catch (ModelNotFoundException $ex) {
+            return response([], 404);
+        } catch (Exception $ex) {
+            return response($ex->getMessage(), 500);
+        }
+    }
+
+    public function refundOrderItem(Request $request, $itemOrderId)
+    {
+        try {
+            $orderPaymentData = $this
+                ->getItemOrderHandler()
+                ->refundOrderItem($itemOrderId, $request->toArray());
+
+            return $orderPaymentData;
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
+        } catch (ModelNotFoundException $ex) {
+            return response([], 404);
+        } catch (Exception $ex) {
+            return response($ex->getMessage(), 500);
+        }
+    }
+
     private function getOrdersHandler(): OrdersHandler
     {
         return app(OrdersHandler::class);

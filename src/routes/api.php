@@ -76,6 +76,8 @@ Route::prefix('admin')->group(function () {
             Route::patch('/item-order/{itemOrderId}/collected', OrdersController::class . '@markItemOrderAsCollected');
             Route::patch('/item-order/{itemOrderId}/received', OrdersController::class . '@markItemOrderAsReceived');
             Route::patch('/item-order/{itemOrderId}/cancel', OrdersController::class . '@markItemOrderAsCancelled');
+            Route::get('/item-order/{itemOrderId}/payments', OrdersController::class . '@getOrderItemPaymentData');
+            Route::patch('/item-order/{itemOrderId}/refund', OrdersController::class . '@refundOrderItem');
         });
     });
 });

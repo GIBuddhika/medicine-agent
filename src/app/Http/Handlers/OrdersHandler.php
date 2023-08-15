@@ -39,8 +39,10 @@ class OrdersHandler
                 //create order_items
                 $this->createOrderItems($order, $orderData['data']);
 
+                $totalPrice = $this->getTotal($order->id);
+
                 //pay order
-                $invoiceId = $this->getPaymentService()->processPayment($order->id, $user, $orderData['stripe_token']);
+                $invoiceId = $this->getPaymentService()->processPayment($order->id, $user, $orderData['stripe_token'], $totalPrice);
 
                 //update order table data
                 $order = $this->updateOrder($order->id, [
@@ -121,17 +123,16 @@ class OrdersHandler
     {
         $orderItemsData = $order->items;
         foreach ($orderItemsData as $orderItem) {
-            $this->createPaymentRecord($order, $orderItem, $user, $invoiceId, "cart-checkout");
+            $paid_amount = (int)$orderItem->pivot->quantity * (int)$orderItem->pivot->price;
+            if ($orderItem->pivot->duration) {
+                $paid_amount *= $orderItem->pivot->duration;
+            }
+            $this->createPaymentRecord($order, $orderItem, $paid_amount, $user, $invoiceId, "cart-checkout");
         }
     }
 
-    public function createPaymentRecord(Order $order, Item $orderItem, User $user, $invoiceId, $checkoutPoint, $duration = null)
+    public function createPaymentRecord(Order $order, Item $orderItem, int $paid_amount, User $user, $invoiceId, $checkoutPoint, $duration = null)
     {
-        $paid_amount = (int)$orderItem->pivot->quantity * (int)$orderItem->pivot->price;
-        if ($orderItem->pivot->duration) {
-            $paid_amount *= $orderItem->pivot->duration;
-        }
-
         if ($checkoutPoint == "cart-checkout") {
             $log = $user->name . ' paid ' . $paid_amount . 'LKR on ' . Carbon::now()->format('Y M d h.ia') . ' at checkout.'; //or shop
         } else if ($checkoutPoint == "extend") {
@@ -170,11 +171,13 @@ class OrdersHandler
             $this->validateOrderExtendData($orderData);
 
             $order = DB::transaction(function () use ($orderData, $user, $order, $orderItem) {
+                $paymentAmount = $orderItem->pivot->price * $orderData['duration'];
+
                 //pay order
-                $invoiceId = $this->getPaymentService()->processPayment($order->id, $user, $orderData['stripe_token']);
+                $invoiceId = $this->getPaymentService()->processPayment($order->id, $user, $orderData['stripe_token'], $paymentAmount);
 
                 //create payments records
-                $this->createPaymentRecord($order, $orderItem,  $user, $invoiceId, "extend", $orderData['duration']);
+                $this->createPaymentRecord($order, $orderItem, $paymentAmount, $user, $invoiceId, "extend", $orderData['duration']);
 
                 //update order_item duration
                 $this->getItemOrderHandler()->handleUpdate($order->id, $orderItem['id'], [
@@ -350,13 +353,11 @@ class OrdersHandler
                 items.shop_id,
                 items.name,
                 items.image_id,
-                files.location,
-                payments.payment_type
+                files.location
                 FROM `item_order` 
                 join orders on item_order.order_id=orders.id
                 join items on item_order.item_id=items.id
                 join files on files.id=items.image_id
-                join payments on payments.item_order_id=item_order.id
                 where orders.user_id=$userId AND items.shop_id is not null
                 AND item_order.status = " . $status . "
                 order By order_created_at DESC
@@ -387,14 +388,12 @@ class OrdersHandler
                 personal_listings.address,
                 personal_listings.latitude,
                 personal_listings.longitude,
-                files.location,
-                payments.payment_type
+                files.location
                 FROM `item_order` 
                 join orders on item_order.order_id=orders.id
                 join items on item_order.item_id=items.id
                 join personal_listings on items.personal_listing_id=personal_listings.id
                 join files on files.id=items.image_id
-                join payments on payments.item_order_id=item_order.id
                 where item_order.status=" . $status . "  AND orders.user_id=$userId and items.shop_id is null 
                 order By order_created_at DESC
             "
@@ -559,14 +558,12 @@ class OrdersHandler
             items.shop_id,
             items.image_id,
             items.name,
-            files.location,
-            payments.payment_type
+            files.location
             FROM `item_order` 
             join orders on item_order.order_id=orders.id
             join items on item_order.item_id=items.id
             join files on files.id=items.image_id
             join users on users.id=orders.user_id
-            join payments on payments.item_order_id=item_order.id
             where items.user_id = $userId
             AND item_order.status = " . (($status == OrderStatusConstants::SUCCESS) ? OrderStatusConstants::SUCCESS : OrderStatusConstants::COLLECTED) . "
             " . (($itemId != null) ? "AND item_order.item_id = $itemId " : "") . "
@@ -648,14 +645,12 @@ class OrdersHandler
             items.personal_listing_id,
             items.image_id,
             items.name,
-            files.location,
-            payments.payment_type
+            files.location
             FROM `item_order` 
             join orders on item_order.order_id=orders.id
             join items on item_order.item_id=items.id
             join files on files.id=items.image_id
             join users on users.id=orders.user_id
-            join payments on payments.item_order_id=item_order.id
             where items.user_id = $userId
             AND item_order.status = " . (($status == OrderStatusConstants::SUCCESS) ? OrderStatusConstants::SUCCESS : OrderStatusConstants::COLLECTED) . "
             " . (($itemId != null) ? "AND item_order.item_id = $itemId " : "") . "
