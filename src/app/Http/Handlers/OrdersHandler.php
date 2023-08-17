@@ -284,12 +284,15 @@ class OrdersHandler
 
 
     //for customer portal
-    public function getUnCollectedOrderItems()
+    public function getUnCollectedOrderItems($data)
     {
         $user = session(SessionConstants::User);
 
-        $unColletedShopOrderItems = $this->getShopOrderItems($user->id, OrderStatusConstants::SUCCESS);
-        $unCollectedPersonalOrderItems = $this->getPersonalOrderItems($user->id, OrderStatusConstants::SUCCESS);
+        $data['date_to'] = Carbon::parse($data['date_to'])->addDay();
+        $data['column'] = 'item_order.created_at';
+
+        $unColletedShopOrderItems = $this->getShopOrderItems($user->id, OrderStatusConstants::SUCCESS, $data);
+        $unCollectedPersonalOrderItems = $this->getPersonalOrderItems($user->id, OrderStatusConstants::SUCCESS, $data);
 
         $shops = Shop::whereIn('id', $unColletedShopOrderItems->keys())->get();
         $users = User::whereIn('id', $unCollectedPersonalOrderItems->keys())->get();
@@ -303,12 +306,15 @@ class OrdersHandler
     }
 
     //for customer portal
-    public function getCollectedOrderItems()
+    public function getCollectedOrderItems($data)
     {
         $user = session(SessionConstants::User);
 
-        $colletedShopOrderItems = $this->getShopOrderItems($user->id, OrderStatusConstants::COLLECTED);
-        $collectedPersonalOrderItems = $this->getPersonalOrderItems($user->id, OrderStatusConstants::COLLECTED);
+        $data['date_to'] = Carbon::parse($data['date_to'])->addDay();
+        $data['column'] = 'item_order.collected_at';
+
+        $colletedShopOrderItems = $this->getShopOrderItems($user->id, OrderStatusConstants::COLLECTED, $data);
+        $collectedPersonalOrderItems = $this->getPersonalOrderItems($user->id, OrderStatusConstants::COLLECTED, $data);
 
         $shops = Shop::whereIn('id', $colletedShopOrderItems->keys())->get();
         $users = User::whereIn('id', $collectedPersonalOrderItems->keys())->get();
@@ -322,12 +328,15 @@ class OrdersHandler
     }
 
     //for customer portal
-    public function getCancelledOrderItems()
+    public function getCancelledOrderItems($data)
     {
         $user = session(SessionConstants::User);
 
-        $colletedShopOrderItems = $this->getShopOrderItems($user->id, OrderStatusConstants::CANCELLED);
-        $collectedPersonalOrderItems = $this->getPersonalOrderItems($user->id, OrderStatusConstants::CANCELLED);
+        $data['date_to'] = Carbon::parse($data['date_to'])->addDay();
+        $data['column'] = 'item_order.cancelled_at';
+
+        $colletedShopOrderItems = $this->getShopOrderItems($user->id, OrderStatusConstants::CANCELLED, $data);
+        $collectedPersonalOrderItems = $this->getPersonalOrderItems($user->id, OrderStatusConstants::CANCELLED, $data);
 
         $shops = Shop::whereIn('id', $colletedShopOrderItems->keys())->get();
         $users = User::whereIn('id', $collectedPersonalOrderItems->keys())->get();
@@ -341,7 +350,7 @@ class OrdersHandler
     }
 
     //for customer portal
-    private function getShopOrderItems($userId, $status)
+    private function getShopOrderItems($userId, $status, $data)
     {
         $shopOrderItems = DB::select(
             DB::raw(
@@ -359,6 +368,8 @@ class OrdersHandler
                 join items on item_order.item_id=items.id
                 join files on files.id=items.image_id
                 where orders.user_id=$userId AND items.shop_id is not null
+                " . ((isset($data['product_name'])) ? "AND items.name like '%" . $data['product_name'] . "%' " : "") . "
+                AND " . $data['column'] . " BETWEEN '" . $data['date_from'] . "' AND '" . $data['date_to'] . "'
                 AND item_order.status = " . $status . "
                 order By order_created_at DESC
             "
@@ -372,7 +383,7 @@ class OrdersHandler
     }
 
     //for customer portal
-    private function getPersonalOrderItems($userId, $status)
+    private function getPersonalOrderItems($userId, $status, $data)
     {
         $personalOrderItems = DB::select(
             DB::raw(
@@ -395,6 +406,8 @@ class OrdersHandler
                 join personal_listings on items.personal_listing_id=personal_listings.id
                 join files on files.id=items.image_id
                 where item_order.status=" . $status . "  AND orders.user_id=$userId and items.shop_id is null 
+                 " . ((isset($data['product_name'])) ? "AND items.name like '%" . $data['product_name'] . "%' " : "") . "
+                AND " . $data['column'] . " BETWEEN '" . $data['date_from'] . "' AND '" . $data['date_to'] . "'
                 order By order_created_at DESC
             "
             )

@@ -95,6 +95,7 @@ class OrdersController extends Controller
 
             return $orders;
         } catch (Exception $ex) {
+            dd($ex);
             return response($ex->getMessage(), 500);
         }
     }
