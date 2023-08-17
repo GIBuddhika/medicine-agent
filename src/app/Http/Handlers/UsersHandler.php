@@ -4,10 +4,16 @@ namespace App\Http\Handlers;
 
 use App\Constants\SessionConstants;
 use App\Constants\UserRoleConstants;
+use App\Constants\ValidationMessageConstants;
 use App\Models\Item;
 use App\Models\Shop;
 use App\Models\User;
+use App\Rules\Phone;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Validator;
 
 class UsersHandler
 {
@@ -17,6 +23,47 @@ class UsersHandler
         if ($user->id == $userId) {
             $user = User::where('id', $userId)
                 ->firstOrFail();
+            return $user;
+        } else {
+            throw new ModelNotFoundException();
+        }
+    }
+
+    public function update(int $userId, array $data)
+    {
+        $user = session(SessionConstants::User);
+
+        $rules = [
+            'name' => 'required',
+            'phone' => ['required', 'numeric', new Phone],
+            'password' => 'confirmed',
+        ];
+        $messages = [
+            'required' => ValidationMessageConstants::Required,
+            'confirmed' => ValidationMessageConstants::Confirmed,
+            'numeric' => ValidationMessageConstants::Invalid,
+        ];
+
+        $validator = Validator::make($data, $rules, $messages);
+        if ($validator->fails()) {
+            throw new ValidationException($validator, 400);
+        }
+
+        if ($user->id == $userId) {
+            $user = User::where('id', $userId)
+                ->firstOrFail();
+
+            if (isset($data['name'])) {
+                $user->name = $data['name'];
+            }
+            if (isset($data['phone'])) {
+                $user->phone = $data['phone'];
+            }
+            if (isset($data['password']) && isset($data['password_confirmation'])) {
+                $user->password = Hash::make($data['password']);
+            }
+            $user->save();
+
             return $user;
         } else {
             throw new ModelNotFoundException();

@@ -23,6 +23,7 @@ Route::get('/districts/{id}/cities', DistrictsController::class . '@getCities');
 Route::prefix('users')->group(function () {
     Route::middleware(['logged_in_user'])->group(function () {
         Route::get('/{id}', UsersController::class . '@get');
+        Route::patch('/{id}', UsersController::class . '@update');
     });
     Route::middleware('any_role:' . UserRoleConstants::SHOP_ADMIN . ',' . UserRoleConstants::ADMIN . '')->group(function () {
         Route::get('/{id}/shops', UsersController::class . '@getShops');

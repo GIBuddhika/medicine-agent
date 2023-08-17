@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Handlers\UsersHandler;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Svg\Tag\Rect;
 
 class UsersController extends Controller
@@ -19,6 +20,28 @@ class UsersController extends Controller
             return $user;
         } catch (ModelNotFoundException $ex) {
             return response([], 404);
+        }
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $data = [
+            'name' => $request->data['name'],
+            'phone' => $request->data['phone'],
+            'password' => $request->data['password'],
+            'password_confirmation' => $request->data['confirmPassword']
+        ];
+
+        try {
+            $user = $this
+                ->getUsersHandler()
+                ->update($id, $data);
+
+            return $user;
+        } catch (ModelNotFoundException $ex) {
+            return response([], 404);
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
         }
     }
 
