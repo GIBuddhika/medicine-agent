@@ -195,7 +195,8 @@ class ItemOrderHandler
             $userRole = session(SessionConstants::UserRole);
 
             $itemOrderQ = ItemOrder::with('item.shop.shopAdmins', 'order')
-                ->where('id', $itemOrderId);
+                ->where('id', $itemOrderId)
+                ->where('status', OrderStatusConstants::SUCCESS);
 
             if ($userRole == UserRoleConstants::SHOP_ADMIN) {
                 //checking ShopAdmin has access to the shop
@@ -214,7 +215,7 @@ class ItemOrderHandler
 
             $orderItem = $itemOrderQ->firstOrFail();
 
-            $orderItem = DB::transaction(function () use ($orderItem, $orderData) {
+            $orderItem = DB::transaction(function () use ($orderItem, $orderData, $user) {
 
                 //since orderitem is not-collected, it should only have one payment.
                 $payment = $orderItem->payments[0];
@@ -224,7 +225,7 @@ class ItemOrderHandler
                     $refund = $this->getPaymentService()->refund($payment, $payment->payment_amount);
 
                     //create refund record along with payment_id, so we know from which payment we made the refund
-                    $this->createRefund($orderItem, $payment, $orderData, $refund);
+                    $this->createRefund($orderItem, $payment, $orderData, $refund, $user);
                 }
 
                 //update the statuses
@@ -285,7 +286,9 @@ class ItemOrderHandler
 
         return [
             'total_paid_amount' => $totalPaidAmount,
-            'online_refunds' => $onlineRefunds
+            'online_refunds' => $onlineRefunds,
+            'payments' => $orderItem->payments,
+            'refunds' => $orderItem->refunds,
         ];
     }
 
@@ -372,7 +375,7 @@ class ItemOrderHandler
         return $payments;
     }
 
-    private function createRefund($orderItem, $payment, $orderData, $refund)
+    private function createRefund($orderItem, $payment, $orderData, $refund, $user)
     {
         $refundData = [
             'order_id' => $orderItem->order_id,
@@ -389,10 +392,7 @@ class ItemOrderHandler
             $refundData['reason'] = $orderData['reason'];
         }
 
-        $customer = $orderItem->order->user;
-
-        $log = $customer->name . ' has cancelled order at ' . Carbon::now()->format('Y M d h.ia') . '.'
-            . ' Refunded amount: ' . $payment->payment_amount . 'LKR.';
+        $log = $user->name . ' has refunded ' . $payment->payment_amount . 'LKR. on ' . Carbon::now()->format('Y M d h.ia') . '.';
 
         $refundData['log'] = $log;
 
@@ -412,7 +412,7 @@ class ItemOrderHandler
             'reason' => null
         ];
 
-        $log = $user->name . ' has refunded ' . $payment->payment_amount . 'LKR. at ' . Carbon::now()->format('Y M d h.ia') . '.';
+        $log = $user->name . ' has refunded ' . $payment->payment_amount . 'LKR. on ' . Carbon::now()->format('Y M d h.ia') . '.';
 
         $refundData['log'] = $log;
 

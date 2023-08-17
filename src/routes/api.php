@@ -1,6 +1,7 @@
 <?php
 
 use App\Constants\UserRoleConstants;
+use App\Http\Controllers\AccountSummaryController;
 use \App\Http\Controllers\AuthController;
 use App\Http\Controllers\DistrictsController;
 use App\Http\Controllers\ItemsController;
@@ -79,6 +80,9 @@ Route::prefix('admin')->group(function () {
             Route::get('/item-order/{itemOrderId}/payments', OrdersController::class . '@getOrderItemPaymentData');
             Route::patch('/item-order/{itemOrderId}/refund', OrdersController::class . '@refundOrderItem');
         });
+    });
+    Route::middleware('any_role:' . UserRoleConstants::SHOP_ADMIN . ',' . UserRoleConstants::ADMIN . '')->group(function () {
+        Route::get('/account-summary', AccountSummaryController::class . '@filterAccountSummary');
     });
 });
 

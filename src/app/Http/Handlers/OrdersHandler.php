@@ -476,6 +476,7 @@ class OrdersHandler
             'status' => ['required', Rule::in([
                 OrderStatusConstants::SUCCESS,
                 OrderStatusConstants::COLLECTED,
+                OrderStatusConstants::CANCELLED,
             ])],
         ];
 
@@ -565,11 +566,11 @@ class OrdersHandler
             join files on files.id=items.image_id
             join users on users.id=orders.user_id
             where items.user_id = $userId
-            AND item_order.status = " . (($status == OrderStatusConstants::SUCCESS) ? OrderStatusConstants::SUCCESS : OrderStatusConstants::COLLECTED) . "
+            AND item_order.status = " . ($status) . "
             " . (($itemId != null) ? "AND item_order.item_id = $itemId " : "") . "
             " . (($phone != null) ? "AND users.phone LIKE '%$phone%' " : "") . "
             " . (($date != null) ? "AND orders.created_at LIKE '$date%' " : "") . "
-            " . (($orderId != null) ? "AND orders.id = $orderId " : "") . "
+            " . (($orderId != null) ? "AND item_order.id = $orderId " : "") . "
             " . (($shopIdsString != "") ? "AND items.shop_id IN ($shopIdsString) " : "AND items.shop_id is not null ") . "
             order By order_created_at DESC";
 
@@ -590,6 +591,7 @@ class OrdersHandler
             'status' => ['required', Rule::in([
                 OrderStatusConstants::SUCCESS,
                 OrderStatusConstants::COLLECTED,
+                OrderStatusConstants::CANCELLED,
             ])],
         ];
 
@@ -652,11 +654,11 @@ class OrdersHandler
             join files on files.id=items.image_id
             join users on users.id=orders.user_id
             where items.user_id = $userId
-            AND item_order.status = " . (($status == OrderStatusConstants::SUCCESS) ? OrderStatusConstants::SUCCESS : OrderStatusConstants::COLLECTED) . "
+            AND item_order.status = " . ($status) . "
             " . (($itemId != null) ? "AND item_order.item_id = $itemId " : "") . "
             " . (($phone != null) ? "AND users.phone LIKE '%$phone%' " : "") . "
             " . (($date != null) ? "AND orders.created_at LIKE '$date%' " : "") . "
-            " . (($orderId != null) ? "AND orders.id = $orderId " : "") . "
+            " . (($orderId != null) ? "AND item_order.id = $orderId " : "") . "
             AND items.personal_listing_id is not null
             order By order_created_at DESC";
 
