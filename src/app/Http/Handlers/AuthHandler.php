@@ -28,16 +28,21 @@ class AuthHandler
             AccountTypeConstants::SHOP,
             AccountTypeConstants::PERSONAL,
             AccountTypeConstants::SHOP_AND_PERSONAL,
+            null
         ];
 
         $rules = [
             'name' => 'required',
             'phone' => ['required', 'numeric', new Phone],
-            'accountType' => ['required', 'numeric', Rule::in($accountTypes)],
             'email' => 'required|unique:users,email,null,id,is_admin,' . $data['is_admin'],
             'password' => 'required|confirmed',
             'is_admin' => 'required|boolean',
         ];
+
+        if ($data['is_admin'] == true) {
+            $rules['accountType'] = [Rule::in($accountTypes)];
+        }
+
         $messages = [
             'required' => ValidationMessageConstants::Required,
             'confirmed' => ValidationMessageConstants::Confirmed,
@@ -45,6 +50,7 @@ class AuthHandler
             'numeric' => ValidationMessageConstants::Invalid,
             'in' => ValidationMessageConstants::Invalid,
         ];
+
 
         $validator = Validator::make($data, $rules, $messages);
         if ($validator->fails()) {
@@ -54,7 +60,9 @@ class AuthHandler
         $user = new User();
         $user->name = $data['name'];
         $user->phone = $data['phone'];
-        $user->admin_account_type = $data['accountType'];
+        if ($data['is_admin'] == true) {
+            $user->admin_account_type = $data['accountType'];
+        }
         $user->email = $data['email'];
         $user->password = Hash::make($data['password']);
         $user->is_admin = $data['is_admin'];
