@@ -10,6 +10,7 @@ use App\Models\City;
 use App\Models\File;
 use App\Models\Item;
 use App\Models\Order;
+use App\Models\Review;
 use App\Models\Shop;
 use Carbon\Carbon;
 use Exception;
@@ -25,7 +26,7 @@ class ItemsHandler
 {
     public function getAll($data)
     {
-        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'shop.file', 'personalListing.user']);
+        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'shop.file', 'personalListing.user', 'reviews.user']);
 
         if (isset($data['searchTerm'])) {
             $searchTerm = $data['searchTerm'];
@@ -171,7 +172,7 @@ class ItemsHandler
     public function get($slug)
     {
         try {
-            $item = Item::with(['sellableItem', 'rentableItem', 'city', 'shop.city', 'user', 'files', 'shop.file', 'personalListing'])
+            $item = Item::with(['sellableItem', 'rentableItem', 'city', 'shop.city', 'user', 'files', 'shop.file', 'personalListing', 'reviews.user'])
                 ->where('slug', $slug)->firstOrFail();
             return $item;
         } catch (ModelNotFoundException $th) {
@@ -306,6 +307,40 @@ class ItemsHandler
                 ->firstOrFail();
             $item->delete();
         } catch (\Throwable $th) {
+            throw new NotFoundHttpException(404);
+        }
+    }
+
+    public function getReviews($itemSlug, $data)
+    {
+        try {
+            $totalCount = 0;
+            $rating = 0;
+
+            $reviewsQ = Review::with(['user'])
+                ->whereHas('item', function ($q) use ($itemSlug) {
+                    $q->where('slug', $itemSlug);
+                });
+
+            $totalRatings = $reviewsQ->sum('rating');
+            $totalCount = $reviewsQ->count();
+
+            if (isset($data['page']) && isset($data['per_page'])) {
+                $reviewsQ = $reviewsQ->skip(($data['page'] - 1) * $data['per_page'])
+                    ->take($data['per_page']);
+            }
+
+            $reviews = $reviewsQ->orderBy('created_at', 'desc')->get();
+            if ($totalRatings > 0) {
+                $rating = $totalRatings / $totalCount;
+            }
+
+            return [
+                'reviews' => $reviews,
+                'total' => $totalCount,
+                'rating' => $rating
+            ];
+        } catch (ModelNotFoundException $th) {
             throw new NotFoundHttpException(404);
         }
     }

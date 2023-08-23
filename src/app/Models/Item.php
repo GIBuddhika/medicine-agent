@@ -56,4 +56,9 @@ class Item extends Model
     {
         return $this->belongsToMany(Order::class);
     }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class)->select(['user_id', 'item_id', 'rating', 'comment', 'updated_at']);
+    }
 }

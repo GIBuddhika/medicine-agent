@@ -6,6 +6,7 @@ use \App\Http\Controllers\AuthController;
 use App\Http\Controllers\DistrictsController;
 use App\Http\Controllers\ItemsController;
 use App\Http\Controllers\OrdersController;
+use App\Http\Controllers\ReviewsController;
 use App\Http\Controllers\ShopAdminsController;
 use App\Http\Controllers\ShopsController;
 use App\Http\Controllers\UsersController;
@@ -52,6 +53,7 @@ Route::prefix('shops')->group(function () {
 Route::prefix('items')->group(function () {
     Route::get('/', ItemsController::class . '@all');
     Route::get('/{slug}', ItemsController::class . '@get');
+    Route::get('/{slug}/reviews', ItemsController::class . '@getReviews');
     Route::middleware('any_role:' . UserRoleConstants::SHOP_ADMIN . ',' . UserRoleConstants::ADMIN . '')->group(function () {
         Route::post('/', ItemsController::class . '@create');
         Route::patch('/{id}', ItemsController::class . '@update');
@@ -94,4 +96,13 @@ Route::prefix('shop-admins')->group(function () {
         Route::patch('/{id}', ShopAdminsController::class . '@update');
         Route::delete('/{id}', ShopAdminsController::class . '@delete');
     });
+});
+
+Route::prefix('reviews')->group(function () {
+    Route::middleware(['customer',])->group(function () {
+        Route::post('/', ReviewsController::class . '@create');
+        Route::patch('/{id}', ReviewsController::class . '@update');
+        Route::delete('/{id}', ReviewsController::class . '@delete');
+    });
+    Route::get('/', ReviewsController::class . '@all');
 });

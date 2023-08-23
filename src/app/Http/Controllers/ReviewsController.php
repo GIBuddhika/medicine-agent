@@ -2,22 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Handlers\ItemsHandler;
+use App\Http\Handlers\ReviewsHandler;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-class ItemsController extends Controller
+class ReviewsController extends Controller
 {
 
     public function create(Request $request)
     {
         try {
             $item = $this
-                ->getItemsHandler()
-                ->createItem($request->toArray());
+                ->getReviewsHandler()
+                ->createReview($request->toArray());
 
             return $item;
         } catch (ValidationException $ex) {
@@ -32,27 +32,14 @@ class ItemsController extends Controller
     public function all(Request $request)
     {
         try {
-            $items = $this
-                ->getItemsHandler()
+            $Reviews = $this
+                ->getReviewsHandler()
                 ->getAll($request->toArray());
 
-            return response()->json($items['data'])
-                ->header('App-Content-Full-Count', $items['total']);
+            return response()->json($Reviews['data'])
+                ->header('App-Content-Full-Count', $Reviews['total']);
         } catch (ValidationException $ex) {
             return response($ex->validator->errors(), 400);
-        }
-    }
-
-    public function get(Request $request, String $slug)
-    {
-        try {
-            $item = $this
-                ->getItemsHandler()
-                ->get($slug);
-
-            return response()->json($item);
-        } catch (NotFoundHttpException $ex) {
-            return response(null, 404);
         }
     }
 
@@ -60,7 +47,7 @@ class ItemsController extends Controller
     {
         try {
             $item = $this
-                ->getItemsHandler()
+                ->getReviewsHandler()
                 ->updateItem($id, $request->toArray());
 
             return $item;
@@ -75,8 +62,8 @@ class ItemsController extends Controller
     {
         try {
             $item = $this
-                ->getItemsHandler()
-                ->deleteItem($id, $request->toArray());
+                ->getReviewsHandler()
+                ->deleteItem($id);
 
             return [];
         } catch (NotFoundHttpException $ex) {
@@ -84,21 +71,8 @@ class ItemsController extends Controller
         }
     }
 
-    public function getReviews(Request $request, string $itemSku)
+    private function getReviewsHandler(): ReviewsHandler
     {
-        try {
-            $reviews = $this
-                ->getItemsHandler()
-                ->getReviews($itemSku, $request->toArray());
-
-            return $reviews;
-        } catch (NotFoundHttpException $ex) {
-            return response(null, 404);
-        }
-    }
-
-    private function getItemsHandler(): ItemsHandler
-    {
-        return app(ItemsHandler::class);
+        return app(ReviewsHandler::class);
     }
 }
