@@ -424,7 +424,7 @@ class OrdersHandler
         $rules = [
             'stripe_token' => 'required',
             'data.*.item_id' => 'required|exists:items,id',
-            'data.*.quantity' => ['required', 'integer', new IsQuantityAvailable()],
+            'data.*.quantity' => ['required', 'integer', new IsQuantityAvailable($orderData['data'])],
             'data.*.duration' => [new RequiredIfARentableItem(), 'present'],
         ];
 

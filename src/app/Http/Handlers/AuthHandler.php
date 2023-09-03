@@ -34,7 +34,7 @@ class AuthHandler
         $rules = [
             'name' => 'required',
             'phone' => ['required', 'numeric', new Phone],
-            'email' => 'required|unique:users,email,null,id,is_admin,' . $data['is_admin'],
+            'email' => 'email|required|unique:users,email,null,id,is_admin,' . $data['is_admin'],
             'password' => 'required|confirmed',
             'is_admin' => 'required|boolean',
         ];

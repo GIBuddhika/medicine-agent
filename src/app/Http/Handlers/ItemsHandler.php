@@ -65,7 +65,7 @@ class ItemsHandler
 
     public function createItem($data)
     {
-        DB::transaction(function () use ($data) {
+        return DB::transaction(function () use ($data) {
             $user = session(SessionConstants::User);
             $rules = [
                 'is_a_shop_listing' => 'required|boolean',
