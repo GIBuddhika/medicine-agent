@@ -13,7 +13,6 @@ class CreateShopsTable extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('city_id');
-            $table->unsignedBigInteger('file_id')->nullable();
             $table->string('name')->nullable();
             $table->string('slug')->nullable();
             $table->string('address');
@@ -21,12 +20,12 @@ class CreateShopsTable extends Migration
             $table->string('website')->nullable();
             $table->decimal('latitude', 17, 15);
             $table->decimal('longitude', 17, 15);
+            $table->string('image_path')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
             $table->foreign('city_id')->references('id')->on('cities');
             $table->foreign('user_id')->references('id')->on('users');
-            $table->foreign('file_id')->references('id')->on('files');
         });
     }
 

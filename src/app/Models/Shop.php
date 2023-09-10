@@ -14,11 +14,6 @@ class Shop extends Model
         return $this->belongsTo(City::class);
     }
 
-    public function file()
-    {
-        return $this->belongsTo(File::class);
-    }
-
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -28,7 +23,7 @@ class Shop extends Model
     {
         return $this->belongsToMany(User::class);
     }
-    
+
     public function items()
     {
         return $this->hasMany(Item::class);

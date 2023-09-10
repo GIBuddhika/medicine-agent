@@ -77,9 +77,9 @@ class UsersHandler
         if ($user->id == $userId) {
             if ($user->is_admin) {
                 if ($user->owner_id != null) {
-                    $shops = $user->shops()->with(['city', 'file'])->get();
+                    $shops = $user->shops()->with(['city'])->get();
                 } else {
-                    $shops = Shop::with(['city', 'file', 'shopAdmins'])
+                    $shops = Shop::with(['city', 'shopAdmins'])
                         ->where('user_id', $userId)
                         ->get();
                 }

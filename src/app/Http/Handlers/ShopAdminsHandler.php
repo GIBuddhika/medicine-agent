@@ -150,7 +150,7 @@ class ShopAdminsHandler
     {
         $user = session(SessionConstants::User);
         if ($user->id == $userId) {
-            $shops = Shop::with(['city', 'file'])
+            $shops = Shop::with(['city'])
                 ->where('user_id', $userId)
                 ->where('is_a_personal_listing', false)
                 ->get();

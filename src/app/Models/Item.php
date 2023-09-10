@@ -12,7 +12,7 @@ class Item extends Model
 
     public function files()
     {
-        return $this->belongsToMany(File::class);
+        return $this->hasMany(File::class);
     }
 
     public function sellableItem()
@@ -48,7 +48,7 @@ class Item extends Model
     public function mainImage()
     {
         return $this->files()
-            ->where('id', $this->image_id)
+            ->where('is_default', true)
             ->first();
     }
 

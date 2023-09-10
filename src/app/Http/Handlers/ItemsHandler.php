@@ -26,7 +26,7 @@ class ItemsHandler
 {
     public function getAll($data)
     {
-        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'shop.file', 'personalListing.user', 'reviews.user']);
+        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'shop', 'personalListing.user', 'reviews.user']);
 
         if (isset($data['searchTerm'])) {
             $searchTerm = $data['searchTerm'];
@@ -172,7 +172,7 @@ class ItemsHandler
     public function get($slug)
     {
         try {
-            $item = Item::with(['sellableItem', 'rentableItem', 'city', 'shop.city', 'user', 'files', 'shop.file', 'personalListing', 'reviews.user'])
+            $item = Item::with(['sellableItem', 'rentableItem', 'city', 'shop.city', 'user', 'files', 'shop', 'personalListing', 'reviews.user'])
                 ->where('slug', $slug)->firstOrFail();
             return $item;
         } catch (ModelNotFoundException $th) {
@@ -355,19 +355,18 @@ class ItemsHandler
             if ($action == "update") {
                 //delete current image
                 $mainImage = $item->mainImage();
-                $item->files()->detach($mainImage->id);
                 $mainImage->delete();
                 Storage::delete("public/" . $mainImage->location);
             }
 
             $fileData = [
+                'item_id' => $item->id,
                 'name' => $data['image_name'],
                 'location' => "images/items/" . Carbon::now()->timestamp . $user->id,
-                'image_data' => $data['image']
+                'image_data' => $data['image'],
+                'is_default' => true,
             ];
             $file = $this->getFilesHandler()->create($fileData);
-            $item->image_id = $file->id;
-            $item->save();
 
             $imageIds[] = $file->id;
         }
@@ -379,7 +378,6 @@ class ItemsHandler
                 $fileIndex = array_search($deletedImageId, array_column($files, "id"));
                 if ($fileIndex) {
                     $file = $files[$fileIndex];
-                    $item->files()->detach($deletedImageId);
                     File::where('id', $deletedImageId)->delete();
                     Storage::delete("public/" . $file['location']);
                 }
@@ -390,16 +388,16 @@ class ItemsHandler
         if (isset($data['sub_images'])) {
             foreach ($data['sub_images'] as $key => $image) {
                 $fileData = [
+                    'item_id' => $item->id,
                     'name' => $image['name'],
                     'location' => "images/items/sub_images/" . Carbon::now()->timestamp . $user->id . $key,
-                    'image_data' => $image['data']
+                    'image_data' => $image['data'],
+                    'is_default' => false,
+
                 ];
                 $file = $this->getFilesHandler()->create($fileData);
                 $imageIds[] = $file->id;
             }
-        }
-        if (count($imageIds) > 0) {
-            $item->files()->syncWithoutDetaching($imageIds);
         }
     }
 

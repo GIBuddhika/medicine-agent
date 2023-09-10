@@ -4,21 +4,24 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateFileItemTable extends Migration
+class CreateFilesTable extends Migration
 {
-
     public function up()
     {
-        Schema::create('file_item', function (Blueprint $table) {
+        Schema::create('files', function (Blueprint $table) {
+            $table->id();
             $table->unsignedBigInteger('item_id');
-            $table->unsignedBigInteger('file_id');
+            $table->string('name');
+            $table->string('location');
+            $table->boolean('is_default')->default(false);
+            $table->timestamps();
+
             $table->foreign('item_id')->references('id')->on('items');
-            $table->foreign('file_id')->references('id')->on('files');
         });
     }
 
     public function down()
     {
-        Schema::dropIfExists('file_item');
+        Schema::dropIfExists('files');
     }
 }

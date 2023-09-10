@@ -6,6 +6,7 @@ use App\Constants\OrderStatusConstants;
 use App\Constants\SessionConstants;
 use App\Constants\UserRoleConstants;
 use App\Constants\ValidationMessageConstants;
+use App\Jobs\NewOrderToSellerMailJob;
 use App\Models\Item;
 use App\Models\ItemOrder;
 use App\Models\Order;
@@ -28,6 +29,10 @@ class OrdersHandler
 {
     public function handleCreateOrderRequest(array $orderData)
     {
+        //take order id from url and filter it in admin orders section.
+        //save order url in session if admin needs to login.
+        //set order data after success order
+
         $user = session(SessionConstants::User);
         try {
             $this->validateOrderData($orderData);
@@ -56,10 +61,13 @@ class OrdersHandler
                 $this->createPaymentRecords($order, $user, $invoiceId);
 
                 //update order_items
-                $this->updateOrderItems($order);
+                $orderItems = $this->updateOrderItems($order);
 
                 // update inventory                
                 $this->getItemsHandler()->updateItemsCountAfterSuccessfulCheckout($order);
+
+                //send email
+                $this->getMailHandler()->dispatchOrderSuccessEmails($order);
 
                 return $order;
             });
@@ -108,16 +116,19 @@ class OrdersHandler
         }
     }
 
-    public function updateOrderItems(Order $order): void
+    public function updateOrderItems(Order $order): array
     {
+        $updatedOrderItems = [];
         $orderItemsData = $order->items;
         foreach ($orderItemsData as $orderItem) {
             $data = [
                 'status' => OrderStatusConstants::SUCCESS
             ];
-            $this->getItemOrderHandler()->handleUpdate($order->id, $orderItem['id'], $data);
+            $updatedOrderItems[] = $this->getItemOrderHandler()->handleUpdate($order->id, $orderItem['id'], $data);
         }
+        return $updatedOrderItems;
     }
+
 
     public function createPaymentRecords(Order $order, User $user, $invoiceId)
     {
@@ -284,6 +295,50 @@ class OrdersHandler
 
 
     //for customer portal
+    public function getOrders($data)
+    {
+        $user = session(SessionConstants::User);
+
+        $data['date_to'] = Carbon::parse($data['date_to'])->addDay();
+
+        $status = null;
+        $data['column'] = 'item_order.created_at';
+        if (isset($data['status'])) {
+            switch ($data['status']) {
+                case 'un-collected':
+                    $status = OrderStatusConstants::SUCCESS;
+                    $data['column'] = 'item_order.created_at';
+                    break;
+                case 'collected':
+                    $status = OrderStatusConstants::COLLECTED;
+                    $data['column'] = 'item_order.collected_at';
+                    break;
+                case 'cancelled':
+                    $status = OrderStatusConstants::CANCELLED;
+                    $data['column'] = 'item_order.cancelled_at';
+                    break;
+                default:
+                    # code...
+                    break;
+            }
+        }
+
+        $unColletedShopOrderItems = $this->getShopOrderItems($user->id, $data, $status);
+        $unCollectedPersonalOrderItems = $this->getPersonalOrderItems($user->id, $data, $status);
+
+        $shops = Shop::whereIn('id', $unColletedShopOrderItems->keys())->get();
+        $users = User::whereIn('id', $unCollectedPersonalOrderItems->keys())->get();
+
+        return [
+            'shopOrderItems' => $unColletedShopOrderItems,
+            'personalOrderItems' => $unCollectedPersonalOrderItems,
+            'shops' => $shops,
+            'users' => $users
+        ];
+    }
+
+
+    //for customer portal
     public function getUnCollectedOrderItems($data)
     {
         $user = session(SessionConstants::User);
@@ -350,7 +405,7 @@ class OrdersHandler
     }
 
     //for customer portal
-    private function getShopOrderItems($userId, $status, $data)
+    private function getShopOrderItems($userId, $data, $status = null)
     {
         $shopOrderItems = DB::select(
             DB::raw(
@@ -361,16 +416,17 @@ class OrdersHandler
                 items.id as item_id,
                 items.shop_id,
                 items.name,
-                items.image_id,
                 files.location
                 FROM `item_order` 
                 join orders on item_order.order_id=orders.id
                 join items on item_order.item_id=items.id
-                join files on files.id=items.image_id
+                join files on files.item_id=items.id
                 where orders.user_id=$userId AND items.shop_id is not null
+                " . ((isset($status)) ? "AND item_order.status = " . $status . " " : "") . "
+                " . ((isset($data['order_item_id'])) ? "AND item_order.id = " . $data['order_item_id'] . " " : "") . "
                 " . ((isset($data['product_name'])) ? "AND items.name like '%" . $data['product_name'] . "%' " : "") . "
                 AND " . $data['column'] . " BETWEEN '" . $data['date_from'] . "' AND '" . $data['date_to'] . "'
-                AND item_order.status = " . $status . "
+                AND files.is_default = true
                 order By order_created_at DESC
             "
             )
@@ -383,7 +439,7 @@ class OrdersHandler
     }
 
     //for customer portal
-    private function getPersonalOrderItems($userId, $status, $data)
+    private function getPersonalOrderItems($userId, $data, $status = null)
     {
         $personalOrderItems = DB::select(
             DB::raw(
@@ -394,7 +450,6 @@ class OrdersHandler
                 items.id as item_id,
                 items.shop_id,
                 items.name,
-                items.image_id,
                 personal_listings.user_id as personal_listing_user_id,
                 personal_listings.address,
                 personal_listings.latitude,
@@ -404,10 +459,13 @@ class OrdersHandler
                 join orders on item_order.order_id=orders.id
                 join items on item_order.item_id=items.id
                 join personal_listings on items.personal_listing_id=personal_listings.id
-                join files on files.id=items.image_id
-                where item_order.status=" . $status . "  AND orders.user_id=$userId and items.shop_id is null 
+                join files on files.item_id=items.id
+                where orders.user_id=$userId and items.shop_id is null 
+                " . ((isset($status)) ? "AND item_order.status = " . $status . " " : "") . "
+                " . ((isset($data['order_item_id'])) ? "AND item_order.id = " . $data['order_item_id'] . " " : "") . "
                  " . ((isset($data['product_name'])) ? "AND items.name like '%" . $data['product_name'] . "%' " : "") . "
                 AND " . $data['column'] . " BETWEEN '" . $data['date_from'] . "' AND '" . $data['date_to'] . "'
+                AND files.is_default = true
                 order By order_created_at DESC
             "
             )
@@ -483,18 +541,18 @@ class OrdersHandler
     }
 
     //for admin portal
-    public function getShopOrderItemsForAdmin(array $data)
+    public function getOrderForAdmin(array $data)
     {
         $rules = [
-            'status' => ['required', Rule::in([
+            'status' => [Rule::in([
                 OrderStatusConstants::SUCCESS,
                 OrderStatusConstants::COLLECTED,
+                OrderStatusConstants::RECEIVED,
                 OrderStatusConstants::CANCELLED,
             ])],
         ];
 
         $messages = [
-            'required' => ValidationMessageConstants::Required,
             'in' => ValidationMessageConstants::Invalid,
         ];
 
@@ -534,8 +592,11 @@ class OrdersHandler
 
         $shopIdsString = implode(",", $shopIds);
 
-        $status = $data['status'];
-
+        if (isset($data['status'])) {
+            $status = $data['status'];
+        } else {
+            $status = null;
+        }
         $orderId = null;
         if (isset($data['order_id'])) {
             $orderId = $data['order_id'];
@@ -553,11 +614,31 @@ class OrdersHandler
             $phone = $data['phone'];
         }
 
-        $unColletedShopOrderItems = $this->getShopOrderItemsAdminFromDB($status, $shopIdsString, $userId, $orderId, $itemId, $date, $phone);
-        $users = User::whereIn('id', $unColletedShopOrderItems->keys())->get();
+        $shopOrderItems = [];
+        $personalOrderItems = [];
+
+        if (isset($data['is_personal_orders_only']) && $data['is_personal_orders_only'] == "true") {
+            $personalOrderItems = $this->getPersonalOrderItemsAdminFromDB($status, $userId, $orderId, $itemId, $date, $phone);
+        } else if (isset($data['shop_id'])) {
+            $shopOrderItems = $this->getShopOrderItemsAdminFromDB($status, $shopIdsString, $userId, $orderId, $itemId, $date, $phone);
+        } else {
+            $personalOrderItems = $this->getPersonalOrderItemsAdminFromDB($status, $userId, $orderId, $itemId, $date, $phone);
+            $shopOrderItems = $this->getShopOrderItemsAdminFromDB($status, $shopIdsString, $userId, $orderId, $itemId, $date, $phone);
+        }
+
+        $allAdminOrderItems = array_merge($shopOrderItems, $personalOrderItems);
+
+        $total = count($allAdminOrderItems);
+
+        if (!empty($data['page']) && !empty($data['per_page'])) {
+            $page = $data['page'];
+            $perPage = $data['per_page'];
+            $allAdminOrderItems = array_slice($allAdminOrderItems, (($page - 1) * $perPage), $perPage);
+        }
+
         return [
-            'order_items' => $unColletedShopOrderItems,
-            'users' => $users
+            'order_items' => $allAdminOrderItems,
+            'total' => $total
         ];
     }
 
@@ -570,83 +651,33 @@ class OrdersHandler
             orders.user_id as order_user_id,
             items.id as item_id,
             items.shop_id,
-            items.image_id,
             items.name,
-            files.location
+            files.location,
+            shops.name as shop_name,
+            cities.name as shop_city_name,
+            users.name as customer_name, users.phone as customer_phone
             FROM `item_order` 
             join orders on item_order.order_id=orders.id
             join items on item_order.item_id=items.id
-            join files on files.id=items.image_id
+            join files on files.item_id=items.id
+            join shops on items.shop_id=shops.id
+            join cities on shops.city_id=cities.id
             join users on users.id=orders.user_id
             where items.user_id = $userId
-            AND item_order.status = " . ($status) . "
+            " . (($status != null) ? "AND item_order.status = $status " : "") . "
             " . (($itemId != null) ? "AND item_order.item_id = $itemId " : "") . "
             " . (($phone != null) ? "AND users.phone LIKE '%$phone%' " : "") . "
             " . (($date != null) ? "AND orders.created_at LIKE '$date%' " : "") . "
             " . (($orderId != null) ? "AND item_order.id = $orderId " : "") . "
             " . (($shopIdsString != "") ? "AND items.shop_id IN ($shopIdsString) " : "AND items.shop_id is not null ") . "
+            AND files.is_default = true
             order By order_created_at DESC";
 
         $shopOrderItems = DB::select(
             DB::raw($rawQuery)
         );
 
-        $unColletedShopOrderItems = ItemOrder::hydrate($shopOrderItems)
-            ->groupBy('order_user_id');
-
-        return $unColletedShopOrderItems;
-    }
-
-    //for admin portal
-    public function getPersonalOrderItemsForAdmin(array $data)
-    {
-        $rules = [
-            'status' => ['required', Rule::in([
-                OrderStatusConstants::SUCCESS,
-                OrderStatusConstants::COLLECTED,
-                OrderStatusConstants::CANCELLED,
-            ])],
-        ];
-
-        $messages = [
-            'required' => ValidationMessageConstants::Required,
-            'in' => ValidationMessageConstants::Invalid,
-        ];
-
-        $validator = Validator::make($data, $rules, $messages);
-
-        if ($validator->fails()) {
-            throw new ValidationException($validator, 400);
-        }
-
-        $user = session(SessionConstants::User);
-        $userRole = session(SessionConstants::UserRole);
-
-        $status = $data['status'];
-
-        $orderId = null;
-        if (isset($data['order_id'])) {
-            $orderId = $data['order_id'];
-        }
-        $itemId = null;
-        if (isset($data['product_id'])) {
-            $itemId = $data['product_id'];
-        }
-        $date = null;
-        if (isset($data['date'])) {
-            $date = $data['date'];
-        }
-        $phone = null;
-        if (isset($data['phone'])) {
-            $phone = $data['phone'];
-        }
-
-        $unColletedShopOrderItems = $this->getPersonalOrderItemsAdminFromDB($status, $user->id, $orderId, $itemId, $date, $phone);
-        $users = User::whereIn('id', $unColletedShopOrderItems->keys())->get();
-        return [
-            'order_items' => $unColletedShopOrderItems,
-            'users' => $users
-        ];
+        return $shopOrderItems;
     }
 
     //for admin portal    
@@ -658,31 +689,29 @@ class OrdersHandler
             orders.user_id as order_user_id,
             items.id as item_id,
             items.personal_listing_id,
-            items.image_id,
             items.name,
-            files.location
+            files.location,
+            users.name as customer_name, users.phone as customer_phone
             FROM `item_order` 
             join orders on item_order.order_id=orders.id
             join items on item_order.item_id=items.id
-            join files on files.id=items.image_id
+            join files on files.item_id=items.id
             join users on users.id=orders.user_id
             where items.user_id = $userId
-            AND item_order.status = " . ($status) . "
+            " . (($status != null) ? "AND item_order.status = $status " : "") . "
             " . (($itemId != null) ? "AND item_order.item_id = $itemId " : "") . "
             " . (($phone != null) ? "AND users.phone LIKE '%$phone%' " : "") . "
             " . (($date != null) ? "AND orders.created_at LIKE '$date%' " : "") . "
             " . (($orderId != null) ? "AND item_order.id = $orderId " : "") . "
             AND items.personal_listing_id is not null
+            AND files.is_default = true
             order By order_created_at DESC";
 
-        $shopOrderItems = DB::select(
+        $personalOrderItems = DB::select(
             DB::raw($rawQuery)
         );
 
-        $unColletedShopOrderItems = ItemOrder::hydrate($shopOrderItems)
-            ->groupBy('order_user_id');
-
-        return $unColletedShopOrderItems;
+        return  $personalOrderItems;
     }
 
     private function getPaymentService(): PaymentService
@@ -708,5 +737,10 @@ class OrdersHandler
     private function getRefundsHandler(): RefundsHandler
     {
         return app(RefundsHandler::class);
+    }
+
+    private function getMailHandler(): MailHandler
+    {
+        return app(MailHandler::class);
     }
 }

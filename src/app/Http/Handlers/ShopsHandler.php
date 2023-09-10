@@ -21,7 +21,7 @@ class ShopsHandler
 {
     public function getAll()
     {
-        $shops = Shop::with('city', 'file')
+        $shops = Shop::with('city')
             ->where('is_a_personal_listing', false)
             ->get();
 
@@ -31,7 +31,7 @@ class ShopsHandler
     public function getShop($id)
     {
         $shop = Shop::where('id', $id)
-            ->with('city', 'file')
+            ->with('city')
             ->firstOrFail();
 
         return $shop;
@@ -42,7 +42,11 @@ class ShopsHandler
         $user = session(SessionConstants::User);
         $shop = Shop::where('id', $id)
             ->where('user_id', $user->id)
-            ->delete();
+            ->firstOrFail();
+
+        Storage::delete("public/" . $shop->image_path);
+
+        $shop->delete();
 
         return $shop;
     }
@@ -55,7 +59,7 @@ class ShopsHandler
             'name' => 'required',
             'address' => 'required',
             'phone' => ['required', 'numeric', new Phone],
-            'website' => 'url|nullable',
+            'website' => 'nullable',
             'latitude' => array('required', 'numeric', 'regex:/^[-]?(([0-8]?[0-9])\.(\d+))|(90(\.0+)?)$/'),
             'longitude' => array('required', 'numeric', 'regex:/^[-]?((((1[0-7][0-9])|([0-9]?[0-9]))\.(\d+))|180(\.0+)?)$/'),
             'image' => 'base64|nullable',
@@ -66,7 +70,6 @@ class ShopsHandler
         $messages = [
             'required' => ValidationMessageConstants::Required,
             'integer' => ValidationMessageConstants::IntegerValue,
-            'url' => ValidationMessageConstants::URL,
             'regex' => ValidationMessageConstants::Invalid,
             'exists' => ValidationMessageConstants::NotFound,
             'numeric' => ValidationMessageConstants::Invalid,
@@ -82,15 +85,6 @@ class ShopsHandler
             throw new ValidationException($validator, 400);
         }
 
-        if (isset($data['image'])) {
-            $file = new File();
-            $file->name = $data['image_name'];
-            $file->location = "images/shops/" . Carbon::now()->timestamp . $user->id;
-            $file->save();
-            $image = str_replace('data:image/png;base64,', '', $data['image']);
-            Storage::put("public/" . $file->location, base64_decode($image));
-        }
-
         $city = City::find($data['city_id']);
         $slugMain = str_replace(" ", "-", $data['name']) . "-" . $city->name;
         $slug = $slugMain;
@@ -103,18 +97,23 @@ class ShopsHandler
         $shop = new Shop();
         $shop->user_id = $user->id;
         $shop->city_id = $data['city_id'];
-        if (isset($data['image'])) {
-            $shop->file_id = $file->id;
-        }
         $shop->name = $data['name'];
         $shop->slug = $slug;
         $shop->address = $data['address'];
         $shop->phone = $data['phone'];
+        $shop->latitude = $data['latitude'];
+        $shop->longitude = $data['longitude'];
+
         if (isset($data['website'])) {
             $shop->website = $data['website'];
         }
-        $shop->latitude = $data['latitude'];
-        $shop->longitude = $data['longitude'];
+
+        if (isset($data['image'])) {
+            $image_path = "images/shops/" . Carbon::now()->timestamp . $user->id;
+            $image = str_replace('data:image/png;base64,', '', $data['image']);
+            Storage::put("public/" . $image_path, base64_decode($image));
+            $shop->image_path = $image_path;
+        }
 
         $shop->save();
 
@@ -135,7 +134,7 @@ class ShopsHandler
             'name' => 'required',
             'address' => 'required',
             'phone' => ['required', 'numeric', new Phone],
-            'website' => 'url|nullable',
+            'website' => 'nullable',
             'latitude' => array('required', 'numeric', 'regex:/^[-]?(([0-8]?[0-9])\.(\d+))|(90(\.0+)?)$/'),
             'longitude' => array('required', 'numeric', 'regex:/^[-]?((((1[0-7][0-9])|([0-9]?[0-9]))\.(\d+))|180(\.0+)?)$/'),
             'image' => 'base64|nullable',
@@ -145,7 +144,6 @@ class ShopsHandler
         $messages = [
             'required' => ValidationMessageConstants::Required,
             'integer' => ValidationMessageConstants::IntegerValue,
-            'url' => ValidationMessageConstants::URL,
             'regex' => ValidationMessageConstants::Invalid,
             'exists' => ValidationMessageConstants::NotFound,
             'numeric' => ValidationMessageConstants::Invalid,
@@ -158,15 +156,6 @@ class ShopsHandler
             throw new ValidationException($validator, 400);
         }
 
-        if (isset($data['image'])) {
-            $file = new File();
-            $file->name = $data['image_name'];
-            $file->location = "images/shops/" . Carbon::now()->timestamp . $user->id;
-            $file->save();
-            $image = str_replace('data:image/png;base64,', '', $data['image']);
-            Storage::put("public/" . $file->location, base64_decode($image));
-        }
-
         $city = City::find($data['city_id']);
         $slugMain = str_replace(" ", "-", $data['name']) . "-" . $city->name;
         $slug = $slugMain;
@@ -177,19 +166,30 @@ class ShopsHandler
         }
 
         $shop->city_id = $data['city_id'];
-        if (isset($data['image'])) {
-            $shop->file_id = $file->id;
-        }
         $shop->name = $data['name'];
         $shop->slug = $slug;
         $shop->address = $data['address'];
         $shop->phone = $data['phone'];
+        $shop->latitude = $data['latitude'];
+        $shop->longitude = $data['longitude'];
+
         if (isset($data['website'])) {
             $shop->website = $data['website'];
         }
-        $shop->latitude = $data['latitude'];
-        $shop->longitude = $data['longitude'];
+
+        if (isset($data['image'])) {
+            $image_path = "images/shops/" . Carbon::now()->timestamp . $user->id;
+            $image = str_replace('data:image/png;base64,', '', $data['image']);
+            Storage::put("public/" . $image_path, base64_decode($image));
+            $shop->image_path = $image_path;
+        }
+
         $shop->save();
+
+        $data['shop_admin_ids'] = json_decode($data['shop_admin_ids']);
+        $shop->shopAdmins()->detach();
+        $shop->shopAdmins()->attach($data['shop_admin_ids']);
+
         return $shop;
     }
 

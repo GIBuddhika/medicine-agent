@@ -64,6 +64,7 @@ Route::prefix('items')->group(function () {
 Route::prefix('orders')->group(function () {
     Route::middleware(['customer'])->group(function () {
         Route::post('/', OrdersController::class . '@create');
+        Route::get('/', OrdersController::class . '@getOrders');
         Route::post('/extend', OrdersController::class . '@extend');
         Route::get('/un-collected', OrdersController::class . '@getUnCollectedOrderItems');
         Route::get('/collected', OrdersController::class . '@getCollectedOrderItems');
@@ -75,8 +76,7 @@ Route::prefix('orders')->group(function () {
 Route::prefix('admin')->group(function () {
     Route::prefix('orders')->group(function () {
         Route::middleware('any_role:' . UserRoleConstants::SHOP_ADMIN . ',' . UserRoleConstants::ADMIN . '')->group(function () {
-            Route::get('/shops', OrdersController::class . '@getShopOrderItemsForAdmin');
-            Route::get('/personal', OrdersController::class . '@getPersonalOrderItemsForAdmin');
+            Route::get('/', OrdersController::class . '@getOrderForAdmin');
             Route::patch('/item-order/{itemOrderId}/collected', OrdersController::class . '@markItemOrderAsCollected');
             Route::patch('/item-order/{itemOrderId}/received', OrdersController::class . '@markItemOrderAsReceived');
             Route::patch('/item-order/{itemOrderId}/cancel', OrdersController::class . '@markItemOrderAsCancelled');
