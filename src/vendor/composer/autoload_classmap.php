@@ -6,6 +6,8 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
+    'ActiveIngredientItemSeeder' => $baseDir . '/database/seeds/ActiveIngredientItemSeeder.php',
+    'ActiveIngredientsSeeder' => $baseDir . '/database/seeds/ActiveIngredientsSeeder.php',
     'App\\Console\\Kernel' => $baseDir . '/app/Console/Kernel.php',
     'App\\Constants\\AccountTypeConstants' => $baseDir . '/app/Constants/AccountTypeConstants.php',
     'App\\Constants\\HeaderConstants' => $baseDir . '/app/Constants/HeaderConstants.php',
@@ -32,6 +34,7 @@ return array(
     'App\\Http\\Handlers\\FilesHandler' => $baseDir . '/app/Http/Handlers/FilesHandler.php',
     'App\\Http\\Handlers\\ItemOrderHandler' => $baseDir . '/app/Http/Handlers/ItemOrderHandler.php',
     'App\\Http\\Handlers\\ItemsHandler' => $baseDir . '/app/Http/Handlers/ItemsHandler.php',
+    'App\\Http\\Handlers\\MailHandler' => $baseDir . '/app/Http/Handlers/MailHandler.php',
     'App\\Http\\Handlers\\OrdersHandler' => $baseDir . '/app/Http/Handlers/OrdersHandler.php',
     'App\\Http\\Handlers\\PaymentsHandler' => $baseDir . '/app/Http/Handlers/PaymentsHandler.php',
     'App\\Http\\Handlers\\PersonalListingHandler' => $baseDir . '/app/Http/Handlers/PersonalListingHandler.php',
@@ -55,8 +58,12 @@ return array(
     'App\\Http\\Middleware\\TrustProxies' => $baseDir . '/app/Http/Middleware/TrustProxies.php',
     'App\\Http\\Middleware\\VerifyCsrfToken' => $baseDir . '/app/Http/Middleware/VerifyCsrfToken.php',
     'App\\Jobs\\ForgotPasswordMailJob' => $baseDir . '/app/Jobs/ForgotPasswordMailJob.php',
+    'App\\Jobs\\NewOrderToCustomerMailJob' => $baseDir . '/app/Jobs/NewOrderToCustomerMailJob.php',
+    'App\\Jobs\\NewOrderToIndividualSellerMailJob' => $baseDir . '/app/Jobs/NewOrderToIndividualSellerMailJob.php',
     'App\\Jobs\\NewOrderToSellerMailJob' => $baseDir . '/app/Jobs/NewOrderToSellerMailJob.php',
     'App\\Mail\\ForgotPasswordMail' => $baseDir . '/app/Mail/ForgotPasswordMail.php',
+    'App\\Mail\\NewOrderMailToCustomer' => $baseDir . '/app/Mail/NewOrderMailToCustomer.php',
+    'App\\Mail\\NewOrderMailToIndividualSeller' => $baseDir . '/app/Mail/NewOrderMailToIndividualSeller.php',
     'App\\Mail\\NewOrderMailToSeller' => $baseDir . '/app/Mail/NewOrderMailToSeller.php',
     'App\\Models\\AuthSession' => $baseDir . '/app/Models/AuthSession.php',
     'App\\Models\\City' => $baseDir . '/app/Models/City.php',
@@ -89,6 +96,7 @@ return array(
     'Asm89\\Stack\\Cors' => $vendorDir . '/asm89/stack-cors/src/Cors.php',
     'Asm89\\Stack\\CorsService' => $vendorDir . '/asm89/stack-cors/src/CorsService.php',
     'Attribute' => $vendorDir . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',
+    'BrandsSeeder' => $baseDir . '/database/seeds/BrandsSeeder.php',
     'Brick\\Math\\BigDecimal' => $vendorDir . '/brick/math/src/BigDecimal.php',
     'Brick\\Math\\BigInteger' => $vendorDir . '/brick/math/src/BigInteger.php',
     'Brick\\Math\\BigNumber' => $vendorDir . '/brick/math/src/BigNumber.php',

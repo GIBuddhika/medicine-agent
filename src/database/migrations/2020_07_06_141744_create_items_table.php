@@ -11,6 +11,7 @@ class CreateItemsTable extends Migration
         Schema::create('items', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('brand_id');
             $table->unsignedBigInteger('city_id');
             $table->boolean('is_a_shop_listing'); //shop listing or personal listing
             $table->unsignedBigInteger('shop_id')->nullable();
@@ -26,6 +27,7 @@ class CreateItemsTable extends Migration
             $table->foreign('user_id')->references('id')->on('users');
             $table->foreign('city_id')->references('id')->on('cities');
             $table->foreign('shop_id')->references('id')->on('shops');
+            $table->foreign('brand_id')->references('id')->on('brands');
         });
     }
 

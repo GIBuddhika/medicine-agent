@@ -15,7 +15,10 @@ class DatabaseSeeder extends Seeder
         $this->call(CitiesSeeder::class);
         $this->call(UsersSeeder::class);
         $this->call(ShopsSeeder::class);
+        $this->call(BrandsSeeder::class);
+        $this->call(ActiveIngredientsSeeder::class);
         $this->call(ItemsSeeder::class);
+        $this->call(ActiveIngredientItemSeeder::class);
         $this->call(FilesSeeder::class);
     }
 }

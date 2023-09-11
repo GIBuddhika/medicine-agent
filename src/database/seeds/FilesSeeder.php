@@ -27,6 +27,20 @@ class FilesSeeder extends Seeder
                 'location' => '/images/items/16833803931',
                 'is_default' => true,
             ],
+            [
+                'id' => 3,
+                'item_id' => 3,
+                'name' => 'piriton',
+                'location' => '/images/items/16942508411',
+                'is_default' => true,
+            ],
+            [
+                'id' => 4,
+                'item_id' => 4,
+                'name' => 'soframycin',
+                'location' => '/images/items/soframycin',
+                'is_default' => true,
+            ],
         ]);
     }
 }

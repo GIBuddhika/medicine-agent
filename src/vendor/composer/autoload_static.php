@@ -453,6 +453,8 @@ class ComposerStaticInita06402725ff26ce8b99ed3b259969489
     );
 
     public static $classMap = array (
+        'ActiveIngredientItemSeeder' => __DIR__ . '/../..' . '/database/seeds/ActiveIngredientItemSeeder.php',
+        'ActiveIngredientsSeeder' => __DIR__ . '/../..' . '/database/seeds/ActiveIngredientsSeeder.php',
         'App\\Console\\Kernel' => __DIR__ . '/../..' . '/app/Console/Kernel.php',
         'App\\Constants\\AccountTypeConstants' => __DIR__ . '/../..' . '/app/Constants/AccountTypeConstants.php',
         'App\\Constants\\HeaderConstants' => __DIR__ . '/../..' . '/app/Constants/HeaderConstants.php',
@@ -479,6 +481,7 @@ class ComposerStaticInita06402725ff26ce8b99ed3b259969489
         'App\\Http\\Handlers\\FilesHandler' => __DIR__ . '/../..' . '/app/Http/Handlers/FilesHandler.php',
         'App\\Http\\Handlers\\ItemOrderHandler' => __DIR__ . '/../..' . '/app/Http/Handlers/ItemOrderHandler.php',
         'App\\Http\\Handlers\\ItemsHandler' => __DIR__ . '/../..' . '/app/Http/Handlers/ItemsHandler.php',
+        'App\\Http\\Handlers\\MailHandler' => __DIR__ . '/../..' . '/app/Http/Handlers/MailHandler.php',
         'App\\Http\\Handlers\\OrdersHandler' => __DIR__ . '/../..' . '/app/Http/Handlers/OrdersHandler.php',
         'App\\Http\\Handlers\\PaymentsHandler' => __DIR__ . '/../..' . '/app/Http/Handlers/PaymentsHandler.php',
         'App\\Http\\Handlers\\PersonalListingHandler' => __DIR__ . '/../..' . '/app/Http/Handlers/PersonalListingHandler.php',
@@ -502,8 +505,12 @@ class ComposerStaticInita06402725ff26ce8b99ed3b259969489
         'App\\Http\\Middleware\\TrustProxies' => __DIR__ . '/../..' . '/app/Http/Middleware/TrustProxies.php',
         'App\\Http\\Middleware\\VerifyCsrfToken' => __DIR__ . '/../..' . '/app/Http/Middleware/VerifyCsrfToken.php',
         'App\\Jobs\\ForgotPasswordMailJob' => __DIR__ . '/../..' . '/app/Jobs/ForgotPasswordMailJob.php',
+        'App\\Jobs\\NewOrderToCustomerMailJob' => __DIR__ . '/../..' . '/app/Jobs/NewOrderToCustomerMailJob.php',
+        'App\\Jobs\\NewOrderToIndividualSellerMailJob' => __DIR__ . '/../..' . '/app/Jobs/NewOrderToIndividualSellerMailJob.php',
         'App\\Jobs\\NewOrderToSellerMailJob' => __DIR__ . '/../..' . '/app/Jobs/NewOrderToSellerMailJob.php',
         'App\\Mail\\ForgotPasswordMail' => __DIR__ . '/../..' . '/app/Mail/ForgotPasswordMail.php',
+        'App\\Mail\\NewOrderMailToCustomer' => __DIR__ . '/../..' . '/app/Mail/NewOrderMailToCustomer.php',
+        'App\\Mail\\NewOrderMailToIndividualSeller' => __DIR__ . '/../..' . '/app/Mail/NewOrderMailToIndividualSeller.php',
         'App\\Mail\\NewOrderMailToSeller' => __DIR__ . '/../..' . '/app/Mail/NewOrderMailToSeller.php',
         'App\\Models\\AuthSession' => __DIR__ . '/../..' . '/app/Models/AuthSession.php',
         'App\\Models\\City' => __DIR__ . '/../..' . '/app/Models/City.php',
@@ -536,6 +543,7 @@ class ComposerStaticInita06402725ff26ce8b99ed3b259969489
         'Asm89\\Stack\\Cors' => __DIR__ . '/..' . '/asm89/stack-cors/src/Cors.php',
         'Asm89\\Stack\\CorsService' => __DIR__ . '/..' . '/asm89/stack-cors/src/CorsService.php',
         'Attribute' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',
+        'BrandsSeeder' => __DIR__ . '/../..' . '/database/seeds/BrandsSeeder.php',
         'Brick\\Math\\BigDecimal' => __DIR__ . '/..' . '/brick/math/src/BigDecimal.php',
         'Brick\\Math\\BigInteger' => __DIR__ . '/..' . '/brick/math/src/BigInteger.php',
         'Brick\\Math\\BigNumber' => __DIR__ . '/..' . '/brick/math/src/BigNumber.php',
