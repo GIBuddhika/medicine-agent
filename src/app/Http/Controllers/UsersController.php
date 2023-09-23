@@ -25,12 +25,7 @@ class UsersController extends Controller
 
     public function update(Request $request, int $id)
     {
-        $data = [
-            'name' => $request->data['name'],
-            'phone' => $request->data['phone'],
-            'password' => $request->data['password'],
-            'password_confirmation' => $request->data['confirmPassword']
-        ];
+        $data = array_filter($request->data, fn ($value) => $value !== null);
 
         try {
             $user = $this

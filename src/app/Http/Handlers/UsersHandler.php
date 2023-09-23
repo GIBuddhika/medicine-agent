@@ -21,7 +21,8 @@ class UsersHandler
     {
         $user = session(SessionConstants::User);
         if ($user->id == $userId) {
-            $user = User::where('id', $userId)
+            $user = User::with('userMeta')
+            ->where('id', $userId)
                 ->firstOrFail();
             return $user;
         } else {
@@ -34,9 +35,9 @@ class UsersHandler
         $user = session(SessionConstants::User);
 
         $rules = [
-            'name' => 'required',
-            'phone' => ['required', 'numeric', new Phone],
+            'phone' => ['numeric', new Phone],
             'password' => 'confirmed',
+            'account_number' => 'numeric',
         ];
         $messages = [
             'required' => ValidationMessageConstants::Required,
@@ -63,6 +64,8 @@ class UsersHandler
                 $user->password = Hash::make($data['password']);
             }
             $user->save();
+
+            $this->getUserMetaHandler()->updateOrCreate($data);
 
             return $user;
         } else {
@@ -177,5 +180,10 @@ class UsersHandler
             'data' => $items,
             'total' => count($items),
         ];
+    }
+
+    private function getUserMetaHandler(): UserMetaHandler
+    {
+        return app(UserMetaHandler::class);
     }
 }

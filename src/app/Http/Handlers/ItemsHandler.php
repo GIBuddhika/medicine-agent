@@ -49,7 +49,7 @@ class ItemsHandler
 
                 " . ((isset($data['searchTerm'])) ? "AND MATCH(items.name) AGAINST('" . $searchTermForMYSQL . "' IN BOOLEAN MODE) " : "") . "
                 " . ((isset($data['genericName'])) ? "AND active_ingredients.name = '" . $data['genericName'] . "' " : "") . "
-                " . ((isset($data['cityId'])) ? "AND items.city_id = " . $data['cityId'] . " " : "") . "
+                " . ((isset($data['cityId'])) ? "AND items.city_id = " . $data['cityId'] : "") . "
                 " . ((isset($data['districtId'])) ? "AND districts.id = " . $data['districtId'] . " " : "") . "
 
                 " . ((isset($data['searchTerm'])) ? "ORDER BY relevance DESC" : "ORDER BY items.created_at DESC") . "
@@ -59,17 +59,27 @@ class ItemsHandler
 
         $ids = array_map(fn ($item) => $item->id, $items);
 
-        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'shop', 'personalListing.user', 'reviews.user', 'brand', 'activeIngredients'])
-            ->whereIn('id', $ids);
+        if (count($ids) > 0) {
+            $implodedIds = implode(',', $ids);
 
-        if ($data['page'] && $data['per_page']) {
-            $totalCount = $itemsQ->count();
-            $itemsQ = $itemsQ->skip(($data['page'] - 1) * $data['per_page'])
-                ->take($data['per_page']);
+            $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'shop', 'personalListing.user', 'reviews.user', 'brand', 'activeIngredients'])
+                ->whereIn('id', $ids)
+                ->orderByRaw(DB::raw("FIELD(id, $implodedIds)"));
+
+            if ($data['page'] && $data['per_page']) {
+                $totalCount = $itemsQ->count();
+                $itemsQ = $itemsQ->skip(($data['page'] - 1) * $data['per_page'])
+                    ->take($data['per_page']);
+            }
+
+            $items = $itemsQ->get();
+        } else {
+            $items = [];
+            $totalCount = 0;
         }
 
         return [
-            'data' => $itemsQ->get(),
+            'data' => $items,
             'total' => $totalCount,
         ];
     }
@@ -77,6 +87,9 @@ class ItemsHandler
     public function getSimilarProducts($data)
     {
         $searchTermForMYSQL = "";
+        $items = [];
+        $totalCount = 0;
+
         //convert `test search` to `test*|search*`
         if (isset($data['searchTerm'])) {
             $searchTermForMYSQL = implode('|', array_map(fn ($text) => $text . '*', explode(' ', $data['searchTerm'])));
@@ -164,7 +177,7 @@ class ItemsHandler
             if ($totalCount == 0) {
                 if (isset($data['searchTerm'])) {
 
-                    $items = DB::select(
+                    $itemsRaw = DB::select(
                         DB::raw(
                             "
                             SELECT distinct items.id, items.created_at ,MATCH(items.name,items.description) AGAINST('" . $searchTermForMYSQL . "' IN BOOLEAN MODE) as relevance
@@ -175,10 +188,8 @@ class ItemsHandler
                         )
                     );
 
-                    $firstTwoItems = array_slice($items, 0, 2);
+                    $firstTwoItems = array_slice($itemsRaw, 0, 2);
                     $firstTwoItemIds = array_map(fn ($item) => $item->id, $firstTwoItems);
-
-                    // dd($firstTwoItems);
 
                     $activeIngredients = [];
 
@@ -365,7 +376,7 @@ class ItemsHandler
     public function get($slug)
     {
         try {
-            $item = Item::with(['sellableItem', 'rentableItem', 'city', 'shop.city', 'user', 'files', 'shop', 'personalListing', 'reviews.user'])
+            $item = Item::with(['sellableItem', 'rentableItem', 'city', 'shop.city', 'user', 'files', 'shop', 'personalListing', 'reviews.user', 'brand', 'activeIngredients'])
                 ->where('slug', $slug)->firstOrFail();
             return $item;
         } catch (ModelNotFoundException $th) {
