@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Constants\ProductCategoryConstants;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -57,8 +56,18 @@ class Item extends Model
         return $this->belongsToMany(Order::class);
     }
 
+    public function activeIngredients()
+    {
+        return $this->belongsToMany(ActiveIngredient::class);
+    }
+
     public function reviews()
     {
         return $this->hasMany(Review::class)->select(['user_id', 'item_id', 'rating', 'comment', 'updated_at']);
+    }
+
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
     }
 }

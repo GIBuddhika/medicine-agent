@@ -26,26 +26,41 @@ class ItemsHandler
 {
     public function getAll($data)
     {
-        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'shop', 'personalListing.user', 'reviews.user']);
-
+        $searchTermForMYSQL = "";
         if (isset($data['searchTerm'])) {
-            $searchTerm = $data['searchTerm'];
-            $itemsQ->where(function ($iquery) use ($searchTerm) {
-                $iquery
-                    ->where('name', 'like', '%' . $searchTerm . '%')
-                    ->orWhere('description', 'like', '%' . $searchTerm . '%');
-            });
+            $searchTermForMYSQL = implode(' ', array_map(fn ($text) => '+' . $text . '*', explode(' ', $data['searchTerm'])));
         }
 
-        $itemsQ->where('quantity', '>', 0);
+        $items = DB::select(
+            DB::raw(
+                "
+                SELECT distinct items.id, items.created_at
+                
+                " . ((isset($data['searchTerm'])) ? ",MATCH(items.name) AGAINST('" . $searchTermForMYSQL . "' IN BOOLEAN MODE) as relevance " : "") . "
+                
+                FROM items 
 
-        if (isset($data['cityId'])) {
-            $cityId = $data['cityId'];
-            $itemsQ->where('city_id', $cityId);
-        } else if (isset($data['districtId'])) {
-            $cities = City::where('district_id', $data['districtId'])->pluck('id')->toArray();
-            $itemsQ->whereIn('city_id', $cities);
-        }
+                join cities on items.city_id=cities.id
+                join districts on cities.district_id=districts.id
+                left join active_ingredient_item on active_ingredient_item.item_id=items.id
+                left join active_ingredients on active_ingredient_item.active_ingredient_id=active_ingredients.id
+
+                WHERE quantity > 0 
+
+                " . ((isset($data['searchTerm'])) ? "AND MATCH(items.name) AGAINST('" . $searchTermForMYSQL . "' IN BOOLEAN MODE) " : "") . "
+                " . ((isset($data['genericName'])) ? "AND active_ingredients.name = '" . $data['genericName'] . "' " : "") . "
+                " . ((isset($data['cityId'])) ? "AND items.city_id = " . $data['cityId'] . " " : "") . "
+                " . ((isset($data['districtId'])) ? "AND districts.id = " . $data['districtId'] . " " : "") . "
+
+                " . ((isset($data['searchTerm'])) ? "ORDER BY relevance DESC" : "ORDER BY items.created_at DESC") . "
+                "
+            )
+        );
+
+        $ids = array_map(fn ($item) => $item->id, $items);
+
+        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'shop', 'personalListing.user', 'reviews.user', 'brand', 'activeIngredients'])
+            ->whereIn('id', $ids);
 
         if ($data['page'] && $data['per_page']) {
             $totalCount = $itemsQ->count();
@@ -53,10 +68,178 @@ class ItemsHandler
                 ->take($data['per_page']);
         }
 
-        $items = $itemsQ
-            ->orderBy('created_at', 'desc')
-            ->get();
+        return [
+            'data' => $itemsQ->get(),
+            'total' => $totalCount,
+        ];
+    }
 
+    public function getSimilarProducts($data)
+    {
+        $searchTermForMYSQL = "";
+        //convert `test search` to `test*|search*`
+        if (isset($data['searchTerm'])) {
+            $searchTermForMYSQL = implode('|', array_map(fn ($text) => $text . '*', explode(' ', $data['searchTerm'])));
+        }
+
+        //search using wildcard
+        $items = DB::select(
+            DB::raw(
+                "
+                SELECT distinct items.id, items.created_at
+                
+                " . ((isset($data['searchTerm'])) ? ",MATCH(items.name,items.description) AGAINST('" . $searchTermForMYSQL . "' IN BOOLEAN MODE) as relevance " : "") . "
+                
+                FROM items 
+
+                join cities on items.city_id=cities.id
+                join districts on cities.district_id=districts.id
+                left join active_ingredient_item on active_ingredient_item.item_id=items.id
+                left join active_ingredients on active_ingredient_item.active_ingredient_id=active_ingredients.id
+
+                WHERE quantity > 0 
+
+                " . ((isset($data['searchTerm'])) ? "AND MATCH(items.name,items.description) AGAINST('" . $searchTermForMYSQL . "' IN BOOLEAN MODE) " : "") . "
+                " . ((isset($data['genericName'])) ? "AND active_ingredients.name = '" . $data['genericName'] . "' " : "") . "
+                " . ((isset($data['cityId'])) ? "AND items.city_id = " . $data['cityId'] . " " : "") . "
+                " . ((isset($data['districtId'])) ? "AND districts.id = " . $data['districtId'] . " " : "") . "
+
+                " . ((isset($data['searchTerm'])) ? "ORDER BY relevance DESC" : "ORDER BY items.created_at DESC") . "
+                " . ((isset($data['page']) && isset($data['per_page'])) ? "LIMIT " . $data['per_page'] . " OFFSET " . ($data['page'] - 1) * $data['per_page'] : "") . "
+                "
+            )
+        );
+
+        $totalCount = count($items);
+
+        if ($totalCount > 0) {
+            $ids = array_map(fn ($item) => $item->id, $items);
+
+            $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'shop', 'personalListing.user', 'reviews.user', 'brand', 'activeIngredients'])
+                ->whereIn('id', $ids);
+
+            $items =  $itemsQ->get();
+        } else {
+            $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'shop', 'personalListing.user', 'reviews.user', 'brand', 'activeIngredients']);
+
+            if (isset($data['cityId'])) {
+                $cityId = $data['cityId'];
+                $itemsQ->where('city_id', $cityId);
+            } elseif (isset($data['districtId'])) {
+                $cities = City::where('district_id', $data['districtId'])->pluck('id')->toArray();
+                $itemsQ->whereIn('city_id', $cities);
+            }
+
+            if (isset($data['genericName'])) {
+                //If search query has genericName, search for matching genericName
+                $genericName = $data['genericName'];
+                $itemsQ->whereHas('activeIngredients', function ($q) use ($genericName) {
+                    $q->where('name', $genericName);
+                });
+            } elseif (isset($data['searchTerm'])) {
+                //If no genericName present in search query but searchTerm present, search for items.name, items.description, and activeIngredients.name for results.
+                $searchTerm = $data['searchTerm'];
+                $itemsQ->where(function ($iquery) use ($searchTerm) {
+                    $iquery
+                        ->orwhere('name', 'like', '%' . $searchTerm . '%')
+                        ->orWhere('description', 'like', '%' . $searchTerm . '%');
+                    $iquery->orwhereHas('activeIngredients', function ($q) use ($searchTerm) {
+                        $q->where('name',  'like', '%' . $searchTerm . '%');
+                    });
+                });
+            }
+
+            $itemsQ->where('quantity', '>', 0);
+
+            if ($data['page'] && $data['per_page']) {
+                $totalCount = $itemsQ->count();
+                $itemsQ = $itemsQ->skip(($data['page'] - 1) * $data['per_page'])
+                    ->take($data['per_page']);
+            }
+
+            $items = $itemsQ
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            if ($totalCount == 0) {
+                if (isset($data['searchTerm'])) {
+
+                    $items = DB::select(
+                        DB::raw(
+                            "
+                            SELECT distinct items.id, items.created_at ,MATCH(items.name,items.description) AGAINST('" . $searchTermForMYSQL . "' IN BOOLEAN MODE) as relevance
+                            FROM items
+                            WHERE MATCH(items.name,items.description) AGAINST('" . $searchTermForMYSQL . "' IN BOOLEAN MODE)
+                            ORDER BY relevance DESC
+                            "
+                        )
+                    );
+
+                    $firstTwoItems = array_slice($items, 0, 2);
+                    $firstTwoItemIds = array_map(fn ($item) => $item->id, $firstTwoItems);
+
+                    // dd($firstTwoItems);
+
+                    $activeIngredients = [];
+
+                    $itemsCollection  = Item::with(['activeIngredients'])
+                        ->whereIn('id', $firstTwoItemIds)
+                        ->get();
+
+                    foreach ($itemsCollection as $item) {
+                        $activeIngredientsCollection = $item->activeIngredients;
+                        foreach ($activeIngredientsCollection as $activeIngredient) {
+                            $activeIngredients[] = $activeIngredient->name;
+                        }
+                    }
+
+                    // Step 1: Count the occurrences
+                    $counts = array_count_values($activeIngredients);
+
+                    // Step 2: Sort by frequency
+                    uasort($counts, function ($a, $b) {
+                        return $b - $a; // Sort in descending order
+                    });
+
+                    // Step 3: Remove duplicates
+                    $allActiveIngredients = [];
+                    foreach ($activeIngredients as $item) {
+                        if (isset($counts[$item])) {
+                            $allActiveIngredients[] = $item;
+                            unset($counts[$item]);
+                        }
+                    }
+
+                    if (count($allActiveIngredients) > 0) {
+
+                        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'shop', 'personalListing.user', 'reviews.user', 'brand', 'activeIngredients'])
+                            ->whereHas('activeIngredients', function ($q) use ($allActiveIngredients) {
+                                $q->whereIn('name', $allActiveIngredients);
+                            });
+
+                        if (isset($data['cityId'])) {
+                            $cityId = $data['cityId'];
+                            $itemsQ->where('city_id', $cityId);
+                        } elseif (isset($data['districtId'])) {
+                            $cities = City::where('district_id', $data['districtId'])->pluck('id')->toArray();
+                            $itemsQ->whereIn('city_id', $cities);
+                        }
+
+                        $itemsQ->where('quantity', '>', 0);
+
+                        if ($data['page'] && $data['per_page']) {
+                            $totalCount = $itemsQ->count();
+                            $itemsQ = $itemsQ->skip(($data['page'] - 1) * $data['per_page'])
+                                ->take($data['per_page']);
+                        }
+
+                        $items = $itemsQ
+                            ->orderBy('created_at', 'desc')
+                            ->get();
+                    }
+                }
+            }
+        }
         return [
             'data' => $items,
             'total' => $totalCount,
@@ -80,6 +263,7 @@ class ItemsHandler
                 'sub_images.*.name' => 'required_with:sub_images.*.data|nullable',
                 'min_quantity' => 'required_if:is_wholesale_pricing_enabled,true|numeric|nullable',
                 'wholesale_price' => 'required_if:is_wholesale_pricing_enabled,true|numeric|nullable',
+                'brand' => 'required',
             ];
 
             $messages = [
@@ -118,6 +302,10 @@ class ItemsHandler
                 $item->category_id = $data['pricing_category'] == "sell" ? ProductCategoryConstants::Sell : ProductCategoryConstants::Rent;
                 $item->quantity = $data['quantity'];
 
+                //take brand id from brands table
+                $brand = $this->getBrandsHandler()->getOrCreateBrand($data['brand']);
+                $item->brand_id = $brand->id;
+
                 if ($data['is_a_shop_listing'] == true) {
                     $item->shop_id = $shopId;
                     $shop = Shop::find($shopId);
@@ -135,6 +323,11 @@ class ItemsHandler
 
                 $item->save();
                 $item = $item->fresh();
+
+                //set active ingredients
+                $activeIngredientIds = $this->getActiveIngredientsHandler()->getOrCreateActiveIngredients($data['active_ingredients']);
+                $item->activeIngredients()->sync($activeIngredientIds);
+
                 //upload images
                 $this->uploadImages($data, $user, $item);
 
@@ -204,7 +397,7 @@ class ItemsHandler
             throw new NotFoundHttpException(404);
         }
 
-        DB::transaction(function () use ($id, $data, $item, $user) {
+        return DB::transaction(function () use ($id, $data, $item, $user) {
             $rules = [
                 'is_a_shop_listing' => 'required|boolean',
                 'shop_id' => 'required_if:is_a_shop_listing,true|nullable|integer|exists:shops,id',
@@ -218,6 +411,7 @@ class ItemsHandler
                 'sub_images.*.name' => 'required_with:sub_images.*.data|nullable',
                 'min_quantity' => 'required_if:is_wholesale_pricing_enabled,true|numeric|nullable',
                 'wholesale_price' => 'required_if:is_wholesale_pricing_enabled,true|numeric|nullable',
+                'brand' => 'required',
             ];
 
             $messages = [
@@ -257,10 +451,16 @@ class ItemsHandler
                     $item->description = $data['description'];
                 }
 
+                //take brand id from brands table
+                $brand = $this->getBrandsHandler()->getOrCreateBrand($data['brand']);
+                $item->brand_id = $brand->id;
+
                 $item->save();
                 $item = $item->fresh();
 
-                $imageIds = [];
+                //set active ingredients
+                $activeIngredientIds = $this->getActiveIngredientsHandler()->getOrCreateActiveIngredients($data['active_ingredients']);
+                $item->activeIngredients()->sync($activeIngredientIds);
 
                 //upload main image
                 $this->uploadImages($data, $user, $item, "update");
@@ -454,5 +654,15 @@ class ItemsHandler
     private function getFilesHandler(): FilesHandler
     {
         return app(FilesHandler::class);
+    }
+
+    private function getActiveIngredientsHandler(): ActiveIngredientsHandler
+    {
+        return app(ActiveIngredientsHandler::class);
+    }
+
+    private function getBrandsHandler(): BrandsHandler
+    {
+        return app(BrandsHandler::class);
     }
 }

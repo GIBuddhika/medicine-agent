@@ -2,7 +2,9 @@
 
 use App\Constants\UserRoleConstants;
 use App\Http\Controllers\AccountSummaryController;
+use App\Http\Controllers\ActiveIngredientsController;
 use \App\Http\Controllers\AuthController;
+use App\Http\Controllers\BrandsController;
 use App\Http\Controllers\DistrictsController;
 use App\Http\Controllers\ItemsController;
 use App\Http\Controllers\OrdersController;
@@ -20,6 +22,8 @@ Route::post('/reset-password', AuthController::class . '@resetPassword');
 
 Route::get('/districts', DistrictsController::class . '@all');
 Route::get('/districts/{id}/cities', DistrictsController::class . '@getCities');
+Route::get('/active-ingredient-names', ActiveIngredientsController::class . '@getNames');
+Route::get('/brand-names', BrandsController::class . '@getNames');
 
 Route::prefix('users')->group(function () {
     Route::middleware(['logged_in_user'])->group(function () {
@@ -52,6 +56,7 @@ Route::prefix('shops')->group(function () {
 
 Route::prefix('items')->group(function () {
     Route::get('/', ItemsController::class . '@all');
+    Route::get('/similar-products', ItemsController::class . '@getSimilarProducts');
     Route::get('/{slug}', ItemsController::class . '@get');
     Route::get('/{slug}/reviews', ItemsController::class . '@getReviews');
     Route::middleware('any_role:' . UserRoleConstants::SHOP_ADMIN . ',' . UserRoleConstants::ADMIN . '')->group(function () {

@@ -99,7 +99,7 @@ class UsersHandler
             throw new ModelNotFoundException();
         }
 
-        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'personalListing', 'shop.shopAdmins']);
+        $itemsQ = Item::with(['sellableItem', 'rentableItem', 'city', 'files', 'personalListing', 'shop.shopAdmins', 'brand', 'activeIngredients']);
 
         //check this function again.
         if ($userRole == UserRoleConstants::SHOP_ADMIN) {

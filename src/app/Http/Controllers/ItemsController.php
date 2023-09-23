@@ -43,6 +43,20 @@ class ItemsController extends Controller
         }
     }
 
+    public function getSimilarProducts(Request $request)
+    {
+        try {
+            $items = $this
+                ->getItemsHandler()
+                ->getSimilarProducts($request->toArray());
+
+            return response()->json($items['data'])
+                ->header('App-Content-Full-Count', $items['total']);
+        } catch (ValidationException $ex) {
+            return response($ex->validator->errors(), 400);
+        }
+    }
+
     public function get(Request $request, String $slug)
     {
         try {
