@@ -171,7 +171,8 @@ class OrdersHandler
     {
         $user = session(SessionConstants::User);
         try {
-            $order = Order::where('id', $orderData['order_id'])
+            $order = Order::with(['user', 'items.shop'])
+                ->where('id', $orderData['order_id'])
                 ->where('user_id', $user->id)
                 ->firstOrFail();
 
@@ -194,6 +195,8 @@ class OrdersHandler
                 $this->getItemOrderHandler()->handleUpdate($order->id, $orderItem['id'], [
                     'duration' => $orderData['duration'] + $orderItem->pivot->duration
                 ]);
+
+                $this->getMailHandler()->dispatchOrderRenewEmails($order, $orderItem, $paymentAmount, $orderData['duration']);
 
                 return $order;
             });

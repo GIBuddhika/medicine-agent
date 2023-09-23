@@ -108,7 +108,7 @@
                                                                 <td class="m_pad" style="padding-bottom:10px;padding-left:10px;padding-right:10px;padding-top:15px">
                                                                     <div style="font-family:sans-serif">
                                                                         <div style="font-size:12px;color:#fff;line-height:1.2;font-family:Arial,Helvetica Neue,Helvetica,sans-serif">
-                                                                            <p style="margin:0;font-size:12px;text-align:center"><span style="font-size:30px">New order received</span></p>
+                                                                            <p style="margin:0;font-size:12px;text-align:center"><span style="font-size:30px">Order extended</span></p>
                                                                         </div>
                                                                     </div>
                                                                 </td>
@@ -133,33 +133,33 @@
                                                             <tr>
                                                                 <td class="m_pad" style="padding-bottom:15px;padding-left:10px;padding-right:10px;padding-top:15px;text-align:center">
                                                                     <div class="m_alignment" align="center">
-                                                                        @foreach($orderItems as $shopName => $items)
-                                                                        <p style="margin-bottom:10px;font-size:18px;color:#fff;text-align:left;">{{$shopName}} has received {{count($items)}} new orders.</p>
-                                                                        @foreach($items as $item)
                                                                         <table class="m_button_block m_block-3" width="100%" cellpadding="0" cellspacing="0" role="presentation">
                                                                             <tr>
                                                                                 <td class="m_pad" style="padding-bottom:15px;padding-left:10px;padding-right:10px;padding-top:15px;text-align:center;width:10%;border-top: 1px solid #fff;">
-                                                                                    <img src="{{$item['image_src']}}" width="150">
+                                                                                    <img src="{{$orderItem['image_src']}}" width="150">
                                                                                 </td>
                                                                                 <td class="m_pad" style="padding-bottom:15px;padding-left:10px;padding-right:10px;padding-top:15px;text-align:center;border-top: 1px solid #fff;">
                                                                                     <div class="m_alignment" align="center">
-                                                                                        <p style="color: #fff;">{{ucfirst($item['name'])}}</p>
+                                                                                        <p style="color: #fff;">{{ucfirst($orderItem['name'])}}</p>
                                                                                     </div>
                                                                                 </td>
                                                                                 <td class="m_pad" style="padding-bottom:15px;padding-left:10px;padding-right:10px;padding-top:15px;text-align:center;border-top: 1px solid #fff;">
                                                                                     <div class="m_alignment" align="center">
-                                                                                        <p style="color: #fff;">{{isset($item['duration'])? ('Duration: '.$item['duration'].' months'): ('Quantity: '.$item['quantity'])}}</p>
+                                                                                        <p style="color: #fff;">{{'Extended duration: '.$orderItem['extendedDuration'].' months'}}</p>
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td class="m_pad" style="padding-bottom:15px;padding-left:10px;padding-right:10px;padding-top:15px;text-align:center;border-top: 1px solid #fff;">
+                                                                                    <div class="m_alignment" align="center">
+                                                                                        <p style="color: #fff;">{{'Paid amount: '.$orderItem['paidAmount'].'LKR'}}</p>
                                                                                     </div>
                                                                                 </td>
                                                                                 <td class="m_pad" style="padding-bottom:15px;padding-left:10px;padding-right:10px;padding-top:15px;text-align:center;border-top : 1px solid #fff;">
                                                                                     <div class="m_alignment" align="center">
-                                                                                        <a style="color: #fff;" href="{{$siteUrl. '/admin/orders?order_id=' . $item['id'].'&force-admin-login=true'}}">View order</a>
+                                                                                        <a style="color: #fff;" href="{{$siteUrl. '/admin/orders?order_id=' . $orderItem['id'].'&force-admin-login=true'}}">View order</a>
                                                                                     </div>
                                                                                 </td>
                                                                             </tr>
                                                                         </table>
-                                                                        @endforeach
-                                                                        @endforeach
                                                                     </div>
                                                                 </td>
                                                             </tr>

@@ -152,7 +152,7 @@
                                                                                 </td>
                                                                                 <td class="m_pad" style="padding-bottom:15px;padding-left:10px;padding-right:10px;padding-top:15px;text-align:center;border-top : 1px solid #fff;">
                                                                                     <div class="m_alignment" align="center">
-                                                                                        <a style="color: #fff;" href="{{$siteUrl. '/admin/orders?&id=' . $item['id']}}">View order</a>
+                                                                                        <a style="color: #fff;" href="{{$siteUrl. '/admin/orders?&order_id=' . $item['id'].'&force-admin-login=true'}}">View order</a>
                                                                                     </div>
                                                                                 </td>
                                                                             </tr>

@@ -155,7 +155,7 @@
                                                                                 </td>
                                                                                 <td class="m_pad" style="padding-bottom:15px;padding-left:10px;padding-right:10px;padding-top:15px;text-align:center;border-top : 1px solid #fff;">
                                                                                     <div class="m_alignment" align="center">
-                                                                                        <a style="color: #fff;" href="{{$siteUrl. '/my-orders?order_item_id=' . $item['id'].'&date_from='.$orderDateFrom.'&date_to='.$orderDateTo}}">
+                                                                                        <a style="color: #fff;" href="{{$siteUrl. '/my-orders?order_item_id=' . $item['id'].'&date_from='.$orderDateFrom.'&date_to='.$orderDateTo.'&force-customer-login=true'}}">
                                                                                             View order
                                                                                         </a>
                                                                                     </div>
